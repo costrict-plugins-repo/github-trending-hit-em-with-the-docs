@@ -1,0 +1,1698 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [3.8.0] — 2026-11-15
+
+Fixes the #120 field-test findings on 3.7.0 in `reconcile --gaps` and `hewtd coverage`. No new config keys. Entries without `facets` are still byte-identical to 3.4.1.
+
+- A facet that is only a value is carried as a count (`withheld_facets`, `N facet(s) withheld`), not as the text `[redacted facet]`, which had been compiled as a regex that matched almost any line. It is never matched, located, merged on, listed as a declared-list entry or used in a doc name; a doc holding all other facets does not cover the miss; a miss with every facet withheld goes to a human. The gate:gaps schedule fixtures are now celery beat files, so their keys are names a detector found.
+- Merging: misses sharing only a declared-list file (schedules, routes, alert rules, CLI flags, config keys) stay separate; elsewhere they tie on a file only within 30 lines; a merged unit is targeted by its union of facets and never inherits one member's `nearest_doc`; a security check holds only the member it was located for.
+- The "generate the reference" hint is given only for facets that are entries of the declared list and sits beside the draft for the rest.
+- Security hold, final: block detection is a whole-file lexer per language family (Python, C-style, Ruby) that tracks every string and comment form across lines, replacing the line-by-line opener guesses. A line is prose only when wholly inside a block comment (`/* */`, nested in Rust, Kotlin, Swift and Scala; `=begin`/`=end` at column 0) or a Python docstring (the first statement of a module, or the first after a `def`/`class` header, with nothing after it). String data after `return`, `=`, `(`, `:`, `+`, `,`, `yield`, `lambda`, template literals, Go and Rust raw strings, Java/Kotlin/Swift text blocks, PHP heredocs and Ruby heredocs and `%q` literals is never prose, so a `/*` in a gitignore body or SQL hint, or `=begin` in a heredoc, no longer lets a bare `@login_required`, `before_action :authenticate_user!`, `authorize! :manage`, `InsecureSkipVerify: true` or `requireAdmin` through. Fails closed: an unterminated construct, an unknown extension or anything unclassifiable marks nothing and 3.7.0 behaviour applies. Code syntax stays a second guard and now also covers a decorator, a Ruby symbol argument, a bang call and an object-literal entry. The 200-line block cap is gone (the lexer knows where a block closes). Generated matrix test `tests/unit/security/prose-lines-matrix-120.test.ts` (96 constructs x 10 check styles x before, inside and after).
+- Inside a quoted literal a matched facet is a value unless it starts with `--` (a long flag) or `/` (a route or path), as in 3.7.0, and it passes the name screen. Only four shapes are added as names: a one-letter flag (`-v`), a file name or path with a known extension (a person or customer name inside a file name is shown), a command phrase with a `--long-flag`, and a name a surface detector found on the same line. Short flags with an attached value (`-ptopsecret`, `-uroot`, `-hprod-db-1`), dotted lowercase names (`john.smith`, `redis.cache`, `payments.db`), event names and hyphenated words are withheld unless a detector names them; versioned, camelCase and wildcard routes are names again.
+- A `/*` in a regex literal (`/\/*/`) no longer hides a following `bcrypt` or `jwt.verify` check, and `#` is a line comment in PHP (both now handled by the lexer).
+- Block syntax is read only in the files that have it (see the lexer entry above); a delimiter in a comment, a string or a shell glob opens nothing.
+- Table file maps and file-map or inventory docs are hubs; new docs go in the majority folder of nearby docs and are titled from their subject, not a boolean-looking facet.
+- `coverage` detects class-level constants and annotated collection constants (named, never stated). Docs say `explained` does not mean every why is present.
+- Declared lists are found by the surface detectors (celery beat `crontab()`/`timedelta`, Flask and FastAPI decorators), not only 5-field cron strings; Java, Kotlin and C# typed collections and arrays are named constants (never stated).
+- A doc whose `sources` list the located file (cited by at most 5 docs) and whose title shares a question term is extended (an `Alerts Runbook` for an alerts miss), even when it cites many files.
+- Last review round: a Java/C# method-local `final`/`const` is not a class constant (a field needs `static` or an access modifier with `final`/`const`/`readonly`); PascalCase C# `const` and `static readonly` fields are constants; multi-line FastAPI decorators, `api_route`, `websocket` and Flask `add_url_rule` are routes; a new doc is named from an identifier that shares a word with the question, else the source module, else the question phrase, and never from a security-check identifier the question does not name; the generated-reference hint covers a facet only on an entry's key or schedule/route/flag line, never its task path or options line.
+- Security review round 3: prose lines are skipped only in Python, JS/TS, Go and C/C++, the languages whose lexer is checked against a real parser; Kotlin, Swift, Scala, C#, PHP, Java, Rust, Ruby and CSS hold every line as in 3.7.0 (interpolation and raw strings there opened fake comments). A JS `<!--` opener makes the lexer give up. A person or account word anywhere in a long flag name (`--customer-acme`) makes its phrase a value, and a path with an empty, `.` or `..` segment is a value. `hewtd coverage --help` and `hewtd reconcile --help` now end with a usage guide (the run, review, judge and apply steps, what `needs_human`, `security_adjacent`, `withheld_facets` and `for_judge` mean, and the config keys).
+- Security review round 4: `/*` inside an open, non-nesting block comment opens nothing, so `/*/` closes it (it had swallowed the closer and marked later code as prose in TS, JS, Go and C); a file with a lone CR, U+2028 or U+2029 marks nothing. `coverage --help` says `needs_human` also covers units whose every facet is withheld as a value.
+- Security review round 2 (allowlists): Option arguments and command phrases use allowlists (3.8.0 review round 2): an argument after `--flag=` or `--flag` is a name only when it is one of dev, optional, peer, true, false, none, all, json, text, yaml, patch, minor, major, latest, debug, info, warn, error, silent, verbose (so `--omit=dev` stays a name and `--target build`, `--as=alice` are values); short flags with anything attached are values. A command phrase is a name only when it starts with a known tool, holds a long flag, and EVERY other word is a bare `--long-flag` that is not a value name, a `--flag=<one of those values>`, or a subcommand word from that tool's fixed list (`npm audit fix --package-lock-only`, `git push --force-with-lease`); any other word (`npm login alice --force`, `kubectl config set acme`, `npm cmd --passphrase=swordfish`) makes the whole phrase a value. A file name inside a literal is shown only with a directory part whose first segment is fixtures, fixture, __fixtures__, tests, test, __tests__, spec, specs, docs, doc, config, configs, scripts, src, lib, examples, templates, migrations, schemas, public, assets or .github (`fixtures/x.json`); a bare `acme-corp.json` or `data/alice.json` is a value. Credential value names now include passphrase, pw and apikey. `hewtd coverage` never states a number under uid, pid, gid, user, owner, customer, admin, email, name, root, support or billing names (`ADMIN_UID = 90210`).
+- Security review: a facet is withheld when any match on any located line overlaps a value span (`-pSup3rS3cretPw`, `-usvc:pw`), not only when every match is wholly inside one. Option arguments: short flags with attached characters are always values; `--long=value` or `--long value` is a value when the flag names a value or a person (`--password`, `--user`, `--username`) or the argument is not a plain lowercase word, so `--omit=dev` stays a name. A command phrase is a name only after a known tool (npm, git, docker, ...) and with no word after a flag lacking `=`; positional passwords and names (`ledger deploy swordfish --prod`, `su postgres --login`) are values. A name that is also quoted as a value on the same line is withheld. Checked against a 3.7.0 build: nothing 3.7.0 withheld became visible through these rules.
+- Prose lexer, last I2 holes: A `/` after the `)` of `if`/`while`/`for`/`with` or after `return`, `typeof`, `instanceof`, `in`, `case`, `delete`, `void`, `throw`, `new`, `else`, `do` or `default` is a regex literal; after another `)`, `]`, a name or a number it is a division; where it is genuinely ambiguous (after `}`, `++`/`--`, `!`, `.`, another `/`, `of`, `yield`, `await`) the rest of the line is lexed both ways and the file is given up unless both end in the same state. JSX files (`.jsx`, `.tsx`) and `.js`/`.mjs`/`.cjs` files holding JSX syntax (`<Tag`, `<>`, `</`) in expression position are given up, a first line `#!` is a line comment in JS and TS (and gives up a C-family file), C and C++ `#include <a/*b>` header names and backslash-spliced `//` comments are lexed exactly (header units, trigraphs and a splice inside a comment opener give up), and in Ruby a multi-line or interpolated `/x` regex, a bare lowercase heredoc id (`<<eos`) and a quoted heredoc id it cannot read are lexed as heredocs or give up. A seeded differential test (2400 generated programs, the TypeScript parser as oracle) asserts the lexer never marks a line that is not wholly inside a real block comment.
+- Gates: `gate:gaps` 31/31, `gate:coverage` 40/40. Full suite 2250 tests pass.
+
+## [3.7.0] — 2026-11-15
+
+Adds `hewtd coverage` (#117) and fixes the #118 field-test misses in `reconcile --gaps`. New command, new config keys `coverage.ignore` and `targets.code_coverage`. Entries without `facets` are still byte-identical to 3.4.1.
+
+- `hewtd coverage` (and `/hit-em-with-the-docs:coverage`): grades every declared surface (scheduled jobs, alert rules, routes, CLI commands and flags, CI workflows and jobs, background tasks, numeric constants, config keys) `absent`, `named` or `explained`, prints the table per kind and code area, and drafts the gaps through the `reconcile --gaps` engine. Read-only unless `--write-review` (`review-<batch>-coverage.md`). A repo with no docs folder grades every surface absent. Known limit: no Go detector (cobra commands and flags, Go constants). Surface names are screened by the security gate (a name holding a host, IP, key, id or environment resource name becomes `<kind> at file:line` and is matched by position; route id segments become `:param`); cron jobs are named by the program they run (wrappers, interpreters and `@daily` style lines handled); celery beat (`CELERY_BEAT_SCHEDULE`, one-line entries), multi-line `@click.option` and click commands are detected; `vendor/`, `third_party/` and any `archive/` folder are skipped. See `docs/coverage.md`.
+- `coverage.ignore` (path prefix, glob or surface name, each with an optional `reason`) holds surfaces on purpose; `targets.code_coverage` (`min`, `reason`) is an opt-in, advisory audit row per surface kind, not written by `--fix`.
+- #118: a citing doc must be relevant to the question before it is the target; file-map docs count as hubs; the eval's `nearest_doc` is preferred over a zero-facet citer; only a located security check (by code shape) goes to a human, a topic word alone is drafted and marked `security_adjacent`; new docs are named after their subject and placed beside nearby docs; a simple constant is stated from its located line. Review fixes: a well-known port number is never stated whatever the name measures; security checks are found by shape in more frameworks (decorators, attributes, middleware, guards, token equality, hashing and signing calls, TLS verification off); a knowledge-base doc is never an extend target. Third review: a located line is a security check by a general rule (a security operand word such as token, key, password, role, owner or policy plus a check form such as an equality, equals, compare, verify, an `in` test, an is/has/can predicate, a JWT parse or a guard), and crypto API calls count alone, so `strcmp(supplied, stored_key) == 0`, `hash_equals`, `IsInRole`, `can?` and `openssl_verify` are withheld for a human; counts of an operand, route paths and comments are not checks. Second review: a named surface extends the doc that names it (never `covered`); a name in a list of identifiers stays `named`; `and/or`, `yes/no` and URLs are not paths; one shared generic noun is not relevance; the eval's `nearest_doc` needs a distinctive facet and a relevance or citation check.
+- Second review round: surface names are screened as written and as read (`_` and `-` as spaces, dashed IPs rejoined, letter/digit/case boundaries, key-prefix and mixed-run tokens), so values joined to a name by an underscore or a letter no longer reach names, queries, facets, reasons or doc names; a facet that is only a credential or config-default value is `[redacted facet]` everywhere and never names a doc; a bare integer from 1024 to 65535 is stated only under a measuring name (more network words: collector, exporter, broker, sink, agent, otlp, statsd, syslog); key-shaped route segments become `:param`.
+- Third review round: only root-level `vendor/`, `third_party/` and `archive/` are skipped (`src/vendor/` is graded); cron jobs are named by what they run (user column of system crontabs, interpreter options and values, management runners by subcommand, `docker`/`kubectl exec` and `flock -c` by the inner command) and two jobs never merge across lines; lists with a lead-in, `and`/`or` joiners or snake_case names stay `named`; a path token needs a file extension, two or more slashes or backticks/link syntax; `gate:coverage` fails a `stated` draft with no stated list and an empty `ignored_files`.
+- Fourth review round: gaps facets are values by context (inside a string literal, a shell option argument, URL or DSN userinfo or a heredoc, or key-shaped) and are `[redacted facet]` everywhere; hex literals over 6 digits and any constant failing the key-token or value rules are not stated; names are normalized (leading zeros, repeated separators), IPv6 forms, 8+ digit runs and 8-digit hex tokens count as values, `_` is read as `-` for environment resource names, cron names lose only script extensions, and gaps questions are screened; file paths are screened per segment (a surface under such a path is held with the reason `value in file path` and shown as `[withheld path]`); port checks cover more ports, underscored numbers and integer arithmetic, and a bare integer is stated only under a name that says what it is. Known limits are listed in `docs/coverage.md`.
+- Final review round: `code` measures only as a status, response, http, exit, error, return or reason code (access, invite, unlock, verification, door, admin, reset and recovery codes are values); a bare 1024..65535 integer under a db, database, redis, cache, queue, host or server name is not stated unless the name carries a unit; helper-style checks (`valid_password(x)`, `token_valid`, `safe_equal`, `constantTimeEq`, `totp.verify`, `is_allowed`, `policy.allows`, `userInGroup`, `stored`/`expected` comparisons, a negated `req.user`) are withheld for a human; opaque route segments (letters mixed with digits, base64-like, key prefixes) become `:param` and query strings are dropped from route names.
+- Fifth review round: the security-check rule reads code context. Quotes and sigils (`$ @ &`) around an operand are stripped, string literals are values (their words never count), membership calls on role/permission/scope collections (`includes`, `has`, `contains`), `matches`, `eq`/`ne`, `Enforce`/`authorize` and `?` predicates (`admin?`, `can?`) are check forms. A decorator, attribute or middleware is a check only by its own name (`login_required`, `Authorize`, `UseGuards`, `PreAuthorize`...); `@click.option('--max-tokens')` and `@Cacheable("tokens")` are graded and drafted normally; count/size/limit/max/min next to an operand, before or after, excludes it.
+- Sixth review round: the cron user column is dropped before `cd X &&` splitting (`root cd /app && ./x.sh` is `x`, `www-data cd /srv && php artisan queue:work` is `queue:work`, also outside system files for common account words); `timeout -s KILL 300`, `npm run --silent sync`, `run-parts /etc/cron.hourly` (`cron.hourly`) and `docker exec -it web ...` are named by what they run. Both gates now validate every case before scoring (non-empty `cases`, known keys only, `draft` one of `stated`/`judge`/`none`, `stated`/`judge` need non-empty lists) and exit non-zero with `malformed expectation` naming the case; the gaps `security` case now states its `judge` facet.
+- Gate completeness: `gate:coverage` requires `draft` on every case, fails when a detector kind has no scored case or the fixture yields a surface no case expects (an `unscored` list in `expected.json`, each entry with a `reason`, is the only exemption), and `gate:gaps` fails when a fixture gap has no case, so deleting a case no longer passes.
+- Seventh review round: a non-list sentence with the name and 3+ content words explains it in a doc that cites the source (`The db_backup job dumps the database nightly.`, `--force skips the confirmation prompt.`); click boolean pairs (`--shout/--no-shout`) are detected; GitLab job keys with colons, quotes or trailing comments, and `trigger`/`extends`/`run` jobs, are found; `hewtd coverage` warns (also in `--json` `warnings`) when no files are tracked; a cron subshell is unwrapped, one-letter and stop-word names become placeholders and are never matched as words; a click command named from its function is located at its own line.
+- Field check on a copy of semantic-memory: 237 surfaces (68 absent, 81 named, 88 explained) in 1.6 s; `--write-review` wrote 37 drafts with no IPs, URLs, ports or key shapes.
+- New release gate `npm run gate:coverage` (in `prepublishOnly`). Measured: `gate:gaps` 20/20 (18 cases, a case-per-gap check and a secret scan), `gate:coverage` 36/36 (29 surface cases plus 7 checks). The real-tree score is not measured here.
+
+## [3.6.0] — 2026-11-14
+
+Reworks `reconcile --gaps` coverage triage after the 3.5.0 field test (#115). No config keys. Entries without `facets` are byte-identical to 3.4.1.
+
+- Target doc by facet coverage (at least half the facets, non-hub first), then the most specific non-hub doc citing the code; hubs (index, overview, reference, generated, archive, incident or broad docs) are a last resort and never a merge point. New docs are proposed when no doc qualifies.
+- Weak facets (`410`, `30\.0`) and non-code files (baselines, ignore files, lockfiles, generated JSON, fixtures, mockups) no longer locate code or trigger "generate the reference".
+- Drafts state a fact only for a simple code constant; other missing facts are listed as `for_judge` with `file:line` for `/hit-em-with-the-docs:reconcile`. Pointer-only padding is gone; an entry with nothing stated has `verdict: null` and apply leaves it alone. Code constants (sizes, timeouts, limits, including `<<`, `**`, hex, `1e6`, unit names and `timedelta`) are allowed; hosts, IPs, ports, IDs, URLs, credentials and env or config values are not. A number under a credential-like name (`DB_PASS`, `OTP_SEED`, `ADMIN_PIN`), a port under a network name or a well-known port number, a 9+ digit id shape, `host:port` and environment resource names (`orders-prod-7`) are never stated or echoed. New docs never take their domain from an incident, overview or reference doc.
+- `needs_human` entries carry a `reason`; a question whose every facet is withheld is listed instead of dropped; the blind warning matches `--include-blind`.
+- New release gate `npm run gate:gaps` (in `prepublishOnly`) over the 13-case synthetic fixture `tests/fixtures/gaps-triage-115`: 15/15 checks pass (14 cases plus a secret scan). The real-tree score is not measured here.
+
+## [3.5.0] — 2026-11-14
+
+Adds coverage-miss handling to `reconcile --gaps` (#113, semantic-memory#101). No config keys.
+
+- `gaps.v1` entries accept `id`, `tier`, `blind`, `facets` (regexes), `missing_facets`, `nearest_doc` and `expected`; the eval's question-set JSONL is accepted too (`//` and `#` comment lines skipped). Entries without `facets` classify exactly as in 3.4.1; a wrong-typed new field is ignored, not fatal.
+- Entries with facets get one outcome each: extend a doc, new doc, covered (check ranking) or instruction file only. Misses sharing a doc or source merge, but never across two different target docs; a doc holding every facet makes the miss covered; declared lists get a "generate the reference" hint.
+- Drafts go to `review-<batch>-coverage.md`, unticked. Extend is a `verify` entry with a `patch`; new doc uses the new `create` review verdict, which never overwrites and re-runs the gate at apply. Each drafted sentence cites a located `file:line`.
+- One security gate (`src/core/security/gate.ts`): no values (facets and queries holding a host, IP, port, ID or config value are not echoed into the report or `--json`), security-sensitive topics are listed as needing a human and never drafted (identifiers are split into words, so `check_auth_token` and `isAuthorized` count). Blind entries warn and are drafted only with `--include-blind`. Code-line-shaped facets are flagged.
+- Facet regexes are untrusted: compile errors, over 300 characters, nested quantifiers and `|` groups under a quantifier are refused, and matching runs under a 500 ms time limit per file or doc, so any other slow pattern is stopped and named in `warnings`. The engine is reusable under `src/core/coverage/`.
+- Docs: `docs/gaps-format.md`, `docs/reconcile.md`, `commands/reconcile.md`, help, LLM guide.
+
+## [3.4.1] — 2026-11-12
+
+Fixes #111. No key changes.
+
+- The Targets row "docs holding credential-shaped values" counts only docs with a finding in the doc itself. Docs that only cite a code file holding a credential-shaped value (triage's `cited file blocked:`) get their own row, "docs citing a file with a credential-shaped value", which lists the cited files (`files` in `audit --json`, paths only) and points at the code side: fix the file, or `hewtd secrets --baseline-add <file:line> --reason "<why>"`. Held docs stay counted apart on both rows.
+
+## [3.4.0] — 2026-11-11
+
+Fixes #108 and adds docs targets (#109). #108: the 3.3.0 graph hook ran `hewtd graph` in the foreground, so a pull or checkout could wait from seconds to minutes. No key changes.
+
+- The `post-merge` / `post-checkout` block runs it in the background: `(npx --no-install hewtd graph --quiet || true) >/dev/null 2>&1 </dev/null &`. The redirects are on the subshell; with them only inside it, git still waits for the background job's output.
+- `hewtd graph` runs one at a time per repo: `.hewtd/graph.lock` (pid), and a run that finds it held leaves `.hewtd/graph.pending` and exits; the holder runs again while one is left, so the newest HEAD wins. A dead or 30-minute-old lock is taken over.
+- `hewtd hooks install` and `upgrade-check --fix` upgrade only the block hewtd wrote in 3.3.0; a block you edited is left alone. `upgrade-check` reports your own block `[ok]` when it runs in the background and `[action]` (never rewritten) when it runs in the foreground.
+- #109, docs targets: `hewtd init` writes a `targets` block (defaults, each with a reason) into `.claude/hit-em-with-the-docs.json`, and `upgrade-check --fix` adds it (new config key `targets`; `targets.flows` and `targets.held` default to `[]`). `hewtd audit` ends with an advisory Targets section (real purpose, verified, no missing refs, unreviewed, secrets, archive candidates, flows with an overview doc): value, target, met, held and one next command per unmet target; it never fails `--strict`. New `hewtd audit --json`. Held docs are counted apart. The retrieval-eval coverage-misses import is deferred until semantic-memory#96 defines an export. See `docs/docs-targets.md`.
+- `upgrade-notes.json` 3.4.0; `docs/upgrade-check.md` notes that the first `hewtd graph` after an upgrade rebuilds its cache and can take minutes.
+
+## [3.3.0] — 2026-11-11
+
+Adds `hewtd upgrade-check` (#104). Additive: the config key `last_upgrade_check` is written by hewtd; nothing else changes.
+
+- `hewtd upgrade-check [--fix] [--record] [--json]` lists what a repo must change after an update, from the shipped `upgrade-notes.json` (3.1.0 onward): version skew across the plugin cache, global CLI, npx cache and `node_modules`; new config keys; the pre-commit block (the exact lines for a custom `core.hooksPath`); skill symlinks; the doc template; `vault.schema.yml` against the frontmatter contract; instruction drift (`file:line` in `CLAUDE.md`, `AGENTS.md`, `.claude/rules/**` plus the release note).
+- Read-only without `--fix`. `--fix` relinks skills, upgrades an existing hook block and adds new config keys at their defaults, and records `last_upgrade_check` only when no item needs action.
+- `/hit-em-with-the-docs:update` runs it after the update; `/hit-em-with-the-docs:status` suggests it; new `/hit-em-with-the-docs:upgrade-check`.
+- `--record` records `last_upgrade_check` once a human has handled the remaining items. A config file that is not valid JSON is reported and never rewritten. Superseded plugin-cache versions are not counted as skew, and a never-installed hook is `[info]`. Versions with a `v` prefix or a prerelease tag compare by their numbers.
+- Docs: `docs/upgrade-check.md`, LLM guide, help, README.
+- #106: `hewtd reconcile --finish [--rotated <ENV>] [--fix] [--confirm] [--json]` inventories what a reconcile leaves behind (`.env.hewtd` key names and rotation, stages, review files, graph files, git hygiene); `--promote --confirm` ends with it. New config key `reconcile.secrets.rotated`. `hewtd graph [--quiet]` and `hewtd hooks install` adds `post-merge` / `post-checkout` graph-refresh blocks; `upgrade-check` reports them. `--confirm` removes only rejected and promoted stages under `.hewtd/` (an open stage is never removed: hewtd cannot tell in-progress from abandoned); `hewtd graph` without `-p` uses the configured `docs_root`.
+
+## [3.2.2] — 2026-11-11
+
+Fixes #103: an applied `rewrite` counted as unreviewed forever. No key changes.
+
+- `is_reviewed` treats a `rewrite` ledger entry as a review once its draft has landed, still gated on the content hash, so editing the doc makes it unreviewed again. The one rule covers `reconcile --changed`, `--next`, `--status`, audit's `DOCS_UNREVIEWED`, the pre-commit `--changed --check` (and `reconcile.require_review`) and the promote warning's count. An overview member with a landed rewrite is `reconciled`, like `verify`.
+- "Landed" is decided by `reviewed_on` (on or after 2026-11-10, when 3.1.6 started landing drafts), not by `applied_commit`. A staged apply makes no commit and promote moves the stage ledger live, so `applied_commit` would have left every staged rewrite unreviewed. A `rewrite` entry recorded before 3.1.6 never landed its draft and stays unreviewed.
+- Docs: `docs/reconcile.md`, the reconcile command, the LLM guide and help.
+
+## [3.2.1] — 2026-11-11
+
+Fixes #101: a cold promote re-added every baselined secret finding under a new path, so the promote PR failed the project's secret scan. No existing key changes; `reconcile.cold_scanner_allowlist` (default `true`) and the manifest field `scanner_allowlists` are additive.
+
+- reconcile `--promote` allowlists the cold root (only that path) in `.gitleaks.toml` (created with `[extend] useDefault = true` when absent) and in `.secrets.baseline` when present, in the single promote commit. The original text and a hash of the edited text are saved in `<cold_root>/.generations/<gen>/scanners.json`; undo restores the original bytes, or deletes a file promote created, and leaves a file edited since alone with a warning. Undoing an older generation while a newer one is still cold keeps the allowlist (the newer generation's undo removes it). A `.gitleaks.toml` whose root allowlist uses dotted keys or an inline table is left alone and the plan says to add the path by hand. Opt out with `reconcile.cold_scanner_allowlist: false` (scanner files are then not part of the clean-tree check). Other scanners (trufflehog) need a hand-made path exclude.
+- The promote plan and result warn about files holding strings scanners commonly flag, about a scanner config that already allowlists the cold root, and about staged docs that audit will report as `DOCS_UNREVIEWED` after promote (counted with audit's own rule).
+- Promote and undo batch the per-doc git history reads: 1,000 docs went from 23.5 s to 3.7 s (promote) and 3.2 s (undo). Scopes under 20 docs keep the single `--follow` walk.
+- Docs: `docs/cold-rotation.md` (new Secret scanners section), `docs/reconcile.md`, LLM guide, help, reconcile command, README.
+
+## [3.2.0] — 2026-11-10
+
+Adds cold rotation (#97) and makes every new or changed doc end reconciled (#98). No existing JSON key changes. New config keys are additive: `reconcile.cold_root` (default `.documentation-cold`), `cold_storage` (written by hewtd) and `reconcile.require_review` (default false). One behaviour change: `integrate` no longer fills `purpose` from the first paragraph (#98).
+
+- reconcile `--stage <dir>` / `--staged <dir>`: snapshot the live docs working tree and run any reconcile mode on the copy only. The live tree, ledger, graph and git stay untouched; staged apply makes no commit and reports `secret` and outside-lane entries as `error`.
+- reconcile `--promote --staged <dir> [--confirm]`: checks everything first and refuses with nothing changed, then swaps the copy in and keeps the old tree as a committed, read-only, dated cold generation, with one commit. Every step after the first rename is undone on failure.
+- reconcile `--undo <generation> --confirm`: restores a generation byte for byte; the rejected tree moves to a new stage under `.hewtd/stage`.
+- reconcile `--generations [--json]`: lists generations with checksum status and secret finding counts.
+- The cold root is left out of reference, mention and symbol search, the outside lane, the peripheral secrets scan, the integrator search, the staged-secrets hook scan and graph invalidation. `hewtd audit` warns when a generation is CHANGED or MISSING.
+- Cold generations lock files only (directories keep their mode, so `git checkout`, `git clean` and CI cleanup work); each file's original mode is saved in `<cold_root>/.generations/<gen>/modes.json` and restored exactly on undo and on a rolled-back promote.
+- The manifest has two checksums: `checksum` over the committed files and `disk_checksum` over every file. A fresh clone reports `ok (disk-only files absent: N)`, not CHANGED, and undo works there.
+- Promote and undo refuse a plugin config that is not valid JSON, keep its style when they write the manifest and restore its exact bytes on rollback. Git paths are read with `-z` (names with quotes, backslashes or tabs are ignored exactly). Undo removes a cold root it leaves empty.
+- The outside lane's config and non-markdown searches skip the cold root; a staged triage reads git staleness from the live counterpart of each doc; `audit` finds cold generations from a subfolder or with `-p`.
+- Every doc created or updated with hewtd ends like a reconciled doc (#98). `reconcile --changed` selects docs that are new, edited since their last review, or never reviewed (scope args narrow it; no clean-tree check; writes no ledger state). The one documented ending for every create or update is `reconcile --changed --write-review`, then the author judges each entry (verdict, the `sources` read, a fix or `external_refs` for each missing ref, `purpose`, `symptoms`), then `--apply`, which stamps `last_verified`, records the review and commits. Batch commits are labelled `changed`.
+- One rule decides "unreviewed" for `--changed`, `hewtd audit` (new advisory `DOCS_UNREVIEWED` warning, never fails `--strict`) and the pre-commit hook (#98). Without a ledger entry (fresh clone, worktree, CI) it falls back to git: a doc is unreviewed with no `last_verified`, with uncommitted changes, or when it was committed after its `last_verified` day (a same-day edit is not caught without the ledger). The root `reports/` folder is skipped.
+- Pre-commit hook (`hewtd hooks install`) also runs `hewtd reconcile --changed --check --cached`: it warns about unreviewed doc changes and blocks only with `reconcile.require_review: true`. hewtd's own commits (apply, promote, undo) set `HEWTD_REVIEWED_COMMIT=1` and are never blocked by it. `hooks install` upgrades an older block in place.
+- `integrate` (#98): prints the new doc's lane, missing or unverified refs and the next step; `--review` writes its review entry (and Next points at that file); no first-paragraph `purpose` (`maintain --fix` and `metadata-sync --fix` unchanged); `-d <domain>` means that domain plus the doc's own, never a detected extra; it copies the source and says so (only when it was really copied); it refuses to overwrite a different doc at the target path (`--force` does not bypass that) and says when an unchanged source is already integrated; its own source copy is not mention evidence.
+- New `templates/doc.template.md` (title, tier, domains, purpose, symptoms, sources, optional commented `external_refs`); the documentation-lifecycle skill, help and README point at it and now describe integrate accurately (#98).
+- Docs: new `docs/cold-rotation.md`; help, reconcile command, LLM guide, README, `docs/reconcile.md`, `docs/write-time-guards.md`, `docs/retrieval-fields.md` and the skill updated for both.
+
+## [3.1.8] — 2026-11-10
+
+Fixes #92 and #93. No breaking changes; `.hewtd/graph.json` stays `version: 1`, no existing JSON key changes.
+
+- reconcile --apply (#92): a metadata-only verdict (`fields`, `phrases`) no longer replaces an earlier review. This applies to a doc whose earlier substantive review still holds, meaning it was unchanged between that review and this one. The ledger keeps `verdict`, `reviewed_on`, `review_file`, `applied_commit` and `env_names`, records the new `content_hash`, and sets a new additive key `fields_on`. A later non-keeping review clears it. `last_verified` is neither stamped nor cleared by a metadata-only apply. Before this, a frontmatter-only fix-up turned verified docs into `fields`.
+- reconcile --status (#92): prints `reviewed, metadata updated since: N` for reviewed docs with a `fields_on` mark.
+- reconcile schema_sources (#93): SQLAlchemy and Django models (`.py`) are read as schema, alongside `.sql` and `.prisma`.
+  - SQLAlchemy: `__tablename__`, `Column` / `mapped_column` (with `name=`), `Table("x", ...)`, and mixin or base-class columns.
+  - Django: `models.Model` subclasses, including custom base chains, with `db_table` or `<app>_<model>` and `<fk>_id`. Abstract models aren't tables but pass their fields on.
+- reconcile schema_sources (#93): a pattern that matches no git-tracked file now gives a triage warning, also in `--json` warnings. Untracked files are never indexed.
+- reconcile table/column refs (#93): a known table always wins. Otherwise an engine catalog (`information_schema`, `pg_catalog`, `mysql`, `sys`, `performance_schema`, `sqlite_master`, `pg_*`, `sqlite_*`) is `unknown`, never `missing`.
+- reconcile dotted refs (#93): a code-span `a.b` is a column ref only when `a` is a known table, so task names, JSON paths and attribute access are `unknown`. Column refs from SQL (`ALTER TABLE ... ADD COLUMN`) stay strict, so a dropped or renamed table is still `missing`. `schema.table.col` now splits at the last dot.
+
+## [3.1.7] — 2026-11-10
+
+Fixes #90. No breaking changes; `.hewtd/graph.json` stays `version: 1`, no existing JSON key changes.
+
+- reconcile --apply (#90): `external_refs` (top level of the entry or `frontmatter.external_refs`; string entries only) is merged into the doc's frontmatter: existing entries first, deduped, never overwritten. Refs a judge rules fine no longer stay `missing`.
+- reconcile --write-review (#90): each non-secret entry gets a read-only `missing: [..]` and an empty `external_refs: []`.
+- reconcile --status (#90): reviewed docs add `refs in reviewed docs: N covered by external_refs, M still missing in K doc(s)`, read from `.hewtd/graph.json`; without a graph it says why in one line (run `hewtd index`, `graph_export: false`, or not a git checkout), and a malformed graph is reported as malformed. It reads the graph at the docs' git top-level, where it is written. Non-string `external_refs` entries in a review entry are ignored; `covered` counts distinct string entries.
+- Help refresh: `commands/help.md`, `commands/reconcile.md`, `docs/LLM-GUIDE.md`, `docs/reconcile.md`, README and the skill now match the 3.x CLI.
+- Invisible features documented: `reconcile.schema_sources`, `reconcile.secrets.disabled_rules` (turns a whole rule off), `reconcile.search_command` (used only by `reconcile --overview`, no shell, 30 s timeout, results first), the `vault.*` keys (table in `docs/knowledge-base-primitives.md`), `cite --alert-name` / `--user-phrase`, `discover patterns --category`, and the `domain add` long flags `--name`, `--description`, `--keywords`, `--category`.
+- Drift test: one `tests/unit/help-drift.test.ts` replaces the help-only test. It reads the commander program and the zod config schema directly (no `dist/` needed) and fails when a command, command-specific flag or config key is undocumented. `src/cli/index.ts` now exports `program` and skips `program.parse()` when `HEWTD_NO_PARSE` is set; `plugin_config_schema` is exported.
+- Review fixes: the `--status` no-graph hint names the real reason; `docs/reconcile.md` says `graph.json` is written by `hewtd index` and `reconcile --apply`; `rewrite` is documented as stamping `last_verified`; a malformed graph throws instead of reading as empty; a review entry only adds string `external_refs` and keeps non-strings already in the doc; the drift test also covers subcommands, puts flags shared by 4+ commands in help.md's new common options, and finds a nested config key only in dotted form or next to its parent.
+- CI: build and test run as a 2 Node x 3 shard matrix (fail-fast off), lint on shard 1 only, the separate Type check step is dropped (the `tsc` build is the same check), `HEWTD_TEST_PREBUILT=1` skips the duplicate rebuild, and action-build is folded into test-action. Local shards (prebuilt) took 27/25/29 s for 377/590/423 tests, together all 1390; CI times come from the PR run. `incremental-code-82` is split into three files over a shared fixture. Branch protection needs the new `build (<node>, shard n/3)` check names. Coverage thresholds are not enforced (`thresholds.global` is read as a glob).
+
+## [3.1.6] — 2026-11-10
+
+Fixes #84, #85 and #86. No breaking changes; `.hewtd/graph.json` stays `version: 1`.
+
+- reconcile triage (#84): refs that could never be repo files are `unknown` (not checkable) instead of `missing`, so the lane and the archive rule no longer count them. This covers gitignored paths, placeholders (a `YYYY` date run, `...`, `<x>`, `{x}`, `*`, `?`), regexes (`^`, backslashes), a `secret/…` path when the repo has no `secret/` folder, and refs listed in the new doc frontmatter `external_refs: [..]`. `./` and `../` paths, including a path written as a link's text, resolve from the doc's own folder first. An UPPER_SNAKE env ref also counts as present through its lowercase name, but only in a file that reads settings or the environment (pydantic `BaseSettings` and similar). Deleted files, renamed files and renamed symbols are still `missing`.
+- reconcile --apply (#85): an entry's `sources` are merged into the doc's existing `sources` instead of replacing them. Existing entries come first, a single string or non-string entries are kept, duplicates are dropped and so is the doc's own path. `sources_remove: [..]` removes entries explicitly. A source that isn't in the repo is kept and reported.
+- reconcile --write-review (#85): with explicitly named docs, it now includes docs in the clean lane, so a sources-only fix-up can reach them. `--next` still skips them.
+- reconcile --apply (#86): an accepted `rewrite` replaces the doc body with the draft in the batch commit. Before, the draft was only written to `.hewtd/reconcile/drafts/` and reported as applied. The doc's frontmatter is kept and merged like an edit, and a draft's own frontmatter only adds keys the doc doesn't have. A draft with no body is an error. Warnings report dropped anchors that other docs link to and dropped cited paths. A landed rewrite is still queued once by `--next` for a second look.
+- generic-secret (#86): a repo path such as `tokens: config/theme/theme.data.json` is not a finding when that file exists in the repo. Path-shaped values that aren't files there are checked as before.
+- graph: the incremental index (#82) also re-checks refs affected by `.gitignore`, a file added at a doc-relative location, the `secret/` folder, settings files and changed paths a doc names, so the graph stays byte-identical to a cold build.
+
+## [3.1.5] — 2026-11-09
+
+Follow-up to 3.1.4 (#82). No breaking changes; `.hewtd/graph.json` stays `version: 1`. Speed only, output is byte-identical to a cold build.
+
+- Speed: a code commit, a dirty code edit or a `node_modules/.bin` change re-resolves only the docs that read the changed paths, instead of rebuilding everything. The cache state key is now the hewtd version, config and docs root; HEAD, dirty non-doc files and the `.bin` listing are stored in `doc_cache`, and `cache_version` is 2 (an old cache is rebuilt once). Cached symbols and staleness signals are kept unless a changed file touches them. Falls back to a full run when the cached head is not an ancestor, more than 2000 paths changed, or `related_repos` is set. Measured with `scripts/bench-graph.mjs` (large profile, 920 docs, 3000 code files, loaded machine, about 30% noise): code commit 18.6 s to 1.0-1.7 s, `.sh` comment commit 21.5 s to 0.9-1.5 s, `.bin` entry added plus one doc edit 7.3 s to 1.9-2.0 s, dirty code edit 8.3 s to 0.9-1.5 s.
+- A `.bin` change with no other edit now rebuilds the graph (the warm fingerprint includes the `.bin` listing).
+
+## [3.1.4] — 2026-11-08
+
+Follow-up to 3.1.3 (#80). No breaking changes; `.hewtd/graph.json` stays `version: 1`.
+
+- Secrets: structured values (member access, call, index, CSS functions) may hold one non-English name, so
+  `datetime.utcnow()`, `settings.qdrant_api_key`, `vault_kv.read_secret_version` and `hsl(var(--x))` are no longer
+  `generic-secret`. The exception is a short lowercase name that is called or accessed (`utcnow(`, `hsl(`), or one short
+  part of a name next to common config words (`qdrant` in `qdrant_api_key`); every other token must still read as a word.
+  Markdown links `[text](url)` are skipped when the text and target both read as words (a random query, path or fragment
+  is still reported), and values with `$VAR` references when nothing random remains. Long single-case runs with high
+  entropy now count as random even when they pass the word test.
+
+## [3.1.3] — 2026-11-08
+
+Follow-up to 3.1.2 (#77). No breaking changes; `.hewtd/graph.json` stays `version: 1`. Speed only, output is byte-identical to a cold build.
+
+- Speed: each doc's body history is walked once per run and read with one `git cat-file --batch`; the symbol table is cached in `.hewtd/graph-cache.json` (`symbol_cache`) under the code state, so a docs-only commit or a one-doc edit with no new symbol runs zero `git grep`; markdown mentions are read in Node. Cold build 30.7 s to 20.2 s (history profile) and 49.6 s to 18.9 s (large profile); docs-only commit and one-doc edit about 1.1 to 1.5 s.
+- Symbols: files under `.hewtd/` (the graph, its cache, reports) are never searched as symbol sources, so a committed
+  `graph.json` can no longer make a code-less name look resolved.
+
+## [3.1.2] — 2026-11-08
+
+Follow-up to 3.1.1 (#76). No breaking changes; `.hewtd/graph.json` stays `version: 1`.
+
+- Secrets: one hump-based word test, `is_word_like` (acronym humps and camelCase are words, consonants are not counted
+  across humps), used by every exemption. A bare value (no `.`, `(` or `[`) is excused only when shaped like an
+  identifier (two or more word humps, digits only as a short trailing group), so pronounceable generated passwords
+  and long lowercase runs are still reported. `generic-secret` no longer reports `settings.openAIApiKey`,
+  `getAPIKey(provider)`, `LLMProviderKey`, `minLengthRequirement12` or `<token-from-init>`; email parts like `QATeam`
+  and `DevOps-Oncall2` count as words, random parts stay random, email-only docs are not in the secret lane. On a
+  corpus of 3186 real identifiers the test passes 99.1% (78.2% in 3.1.1). Known limit: about 0.9% of real names
+  (digit-heavy, 5-consonant humps) are still reported.
+- Speed: the per-doc cache keys on the last code commit, not HEAD. A docs-only commit re-indexes in 1.3 s instead of
+  31.8 s on the large profile. Amend, rebase, a non-descending branch switch or a 3.1.1 cache (no `head`) takes the
+  full path, so the first run after upgrading is a full rebuild. `bench-graph.mjs` gains a docs-only commit step.
+
+## [3.1.1] — 2026-11-08
+
+Follow-up to 3.1.0 (#74). No breaking changes; `.hewtd/graph.json` stays `version: 1`.
+
+- Secrets: `generic-secret` reports literal values only. Code expressions (member access, optional chaining, calls,
+  indexing), wrapped placeholders (`[..]`, `<..>`, `${..}`, `{{..}}`, `$(..)`, `%(..)s`), regex-heavy values and
+  `abc123`/`123456`/`abcdef`/`qwerty` placeholders are skipped, and a well-formed email is a non-blocking `personal`
+  finding, so digit-bearing emails no longer put a doc in the secret lane. Every exemption excuses only words or
+  ascending runs, never random characters, and wrappers and prefixes apply to the free-text rules only: strong rules
+  (`aws-secret-key`, `approle-id`, key prefixes) are never excused. Under 1% of adversarial random samples (3-letter
+  tokens, camel-shaped random letters) can still read as words.
+- Speed: `hewtd index` after a one-doc edit reuses per-doc triage entries (`doc_cache` in `.hewtd/graph-cache.json`)
+  while HEAD and the code are unchanged: 8.2 s to 1.7 s on the large benchmark profile (920 docs). Output equals a
+  cold build. A reused entry is re-resolved when a doc-link target outside the kept docs (`archive/`, `INDEX.md`, a
+  dot-dir) appears, disappears or changes kind, and the code state includes the names in `node_modules/.bin`, so
+  installing a package refreshes `npx` refs. `bench-graph.mjs` gains `BENCH_KEEP=1`.
+
+## [3.1.0] — 2026-11-08
+
+Fixes from the 3.0.0 field test (#72). No breaking changes; `.hewtd/graph.json` stays `version: 1`.
+
+- Frontmatter: `fix-retrieval-fields --apply`, `maintain --fix` / `metadata-sync`, `archive` / `unarchive` and the
+  outside move rewrite only the keys they own (new `with_frontmatter_data`; `with_frontmatter_keys` removes a key
+  given `undefined`). `parse_frontmatter` normalizes CRLF before parsing.
+- Secrets: a cited `.md` with findings is withheld in `blocked_files` and no longer puts the citing doc in the
+  secret lane. Placeholders made mostly of ascending runs, url passwords under 8 characters or common ones, and regex
+  values with no strong value left once the regex syntax is removed are no longer findings. Random keys with one
+  short run, and random secrets containing `.*` or `\d`, are still found.
+- Graph: runtime expressions (`process.env`, `import.meta.env`, `os.environ`, `window.*`...) are not file, column
+  or symbol refs (a token ending in a file extension, such as `request.ts` or `config.env`, stays a file); named env vars become env refs. Link format change: consumers (semantic-memory) will see fewer refs, so some previously dead refs disappear.
+- Speed: `hewtd index` skips the export when nothing changed and reuses per-doc staleness otherwise; warm unchanged
+  on 900 docs goes from 15.7 s to 0.2 s. Cache in `.hewtd/graph-cache.json`; `HEWTD_TIMING=1` prints stage timings;
+  `scripts/bench-graph.mjs` reproduces the numbers.
+- Reconcile apply makes a `docs(reconcile)` commit for the docs and, only if an index file changed, a separate
+  `docs(index)` commit. The ledger `applied_commit` is the docs commit. A failed index commit keeps the docs commit
+  and warns to run `hewtd index`.
+
+## [3.0.0] — 2026-11-08
+
+Naming standard (docs/naming.md): snake_case code identifiers, one name per concept, one meaning per verb, full
+words. Behaviour, the CLI, `--json` output and every file under `.hewtd/` are unchanged. Only the programmatic
+(library) API breaks.
+
+### Breaking: library API
+
+- Every exported function is renamed to snake_case; many also take the glossary verb (`get_` that reads files is
+  `load_`/`find_`/`list_`, `generate_` that writes files is `write_`, and so on). Old names are removed.
+- Option-bag properties on exported functions are snake_case too (`docsPath` -> `docs_root`, `projectRoot` ->
+  `repo_root`, `dryRun` -> `dry_run`, `rootPath` -> `root_path`, `vaultRoot` -> `vault_root`, `filePath` ->
+  `file_path`). Serialized shapes (config keys, JSON output, frontmatter) keep their names.
+- Renamed exports (old -> new):
+
+| Old | New |
+|---|---|
+| `MetadataSchema` | `metadata_schema` |
+| `PartialMetadataSchema` | `partial_metadata_schema` |
+| `analyzeDependencies` | `discover_dependencies` |
+| `archiveDoc` | `archive_doc` |
+| `auditDocumentation` | `check_documentation` |
+| `batchIntegrate` | `integrate_batch` |
+| `buildCiterIndex` | `build_citer_index` |
+| `buildDomainConnectionMatrix` | `build_domain_connection_matrix` |
+| `buildLinkGraph` | `build_link_graph` |
+| `buildRegistry` | `build_registry` |
+| `calculateMetadataCompleteness` | `compute_metadata_completeness` |
+| `calculateReadTime` | `compute_read_time` |
+| `candidateAbsPath` | `resolve_candidate_abs_path` |
+| `checkLinks` | `check_links` |
+| `checkSingleLink` | `check_single_link` |
+| `citedSources` | `load_cited_sources` |
+| `citerCount` | `count_citers` |
+| `classifyTier` | `classify_tier` |
+| `configFilePath` | `resolve_config_file_path` |
+| `countActionableIssues` | `count_actionable_issues` |
+| `countWords` | `count_words` |
+| `createBlockquote` | `render_blockquote` |
+| `createCheckboxList` | `render_checkbox_list` |
+| `createCodeBlock` | `render_code_block` |
+| `createHeading` | `render_heading` |
+| `createInlineCode` | `render_inline_code` |
+| `createLink` | `render_link` |
+| `createList` | `render_list` |
+| `createScaffold` | `create_scaffold` |
+| `createTable` | `render_table` |
+| `customDomainSchema` | `custom_domain_schema` |
+| `detectDomain` | `detect_domain` |
+| `detectDomainFromContent` | `detect_domain_from_content` |
+| `detectDomainFromPath` | `detect_domain_from_path` |
+| `discoverAntiPatterns` | `discover_anti_patterns` |
+| `discoverPatterns` | `discover_patterns` |
+| `discoverStandards` | `discover_standards` |
+| `evaluate` | `check_guard` |
+| `extractExcerpt` | `extract_excerpt` |
+| `extractFrontmatterString` | `extract_frontmatter_string` |
+| `extractHeadings` | `extract_headings` |
+| `extractInternalLinks` | `extract_internal_links` |
+| `extractLinks` | `extract_links` |
+| `extractTitle` | `extract_title` |
+| `findArchiveCandidates` | `find_archive_candidates` |
+| `findCitersInIndex` | `find_citers_in_index` |
+| `findHubFiles` | `find_hub_files` |
+| `findInboundLinks` | `find_inbound_links` |
+| `findMarkdownFiles` | `find_markdown_files` |
+| `findOrphanFiles` | `find_orphan_files` |
+| `fixRetrievalFields` | `fix_retrieval_fields` |
+| `formatDate` | `format_date` |
+| `formatKbError` | `format_knowledge_base_error` |
+| `formatMarkdownTable` | `render_markdown_table` |
+| `formatReadTime` | `format_read_time` |
+| `generateAuditReport` | `generate_audit_report` |
+| `generateDomainIndexContent` | `generate_domain_index_content` |
+| `generateDomainRegistryContent` | `generate_domain_registry_content` |
+| `generateFactsIndex` | `write_facts_index` |
+| `generateHealthReport` | `generate_health_report` |
+| `generateIncidentsIndex` | `write_incidents_index` |
+| `generateKbIndexes` | `generate_knowledge_base_indexes` |
+| `generateLinkReport` | `generate_link_report` |
+| `generateMetadata` | `generate_metadata` |
+| `generatePatternDocumentation` | `generate_pattern_documentation` |
+| `generateRootIndex` | `generate_root_index` |
+| `generateRootRegistry` | `generate_root_registry` |
+| `generateSymptomsIndex` | `write_symptoms_index` |
+| `getAllDomains` | `get_all_domains` |
+| `getAllKeywords` | `get_all_keywords` |
+| `getAuditSummaryForDomain` | `load_audit_summary_for_domain` |
+| `getBacklinks` | `find_backlinks` |
+| `getBasename` | `get_basename` |
+| `getDirname` | `get_dirname` |
+| `getDomainDefinition` | `get_domain_definition` |
+| `getDomainsByCategory` | `get_domains_by_category` |
+| `getDomainsByPriority` | `get_domains_by_priority` |
+| `getExtension` | `get_extension` |
+| `getFieldCategory` | `get_field_category` |
+| `getFileBrokenLinks` | `find_file_broken_links` |
+| `getFrontmatterField` | `get_frontmatter_field` |
+| `getLinkStatistics` | `load_link_statistics` |
+| `getMissingFields` | `get_missing_fields` |
+| `getMissingRequiredFields` | `get_missing_required_fields` |
+| `getRegistry` | `get_registry` |
+| `getRelativePath` | `get_relative_path` |
+| `getScaffoldStatus` | `load_scaffold_status` |
+| `getSubdirectories` | `list_subdirectories` |
+| `getSyncStats` | `load_sync_stats` |
+| `getTierDefinition` | `get_tier_definition` |
+| `getTierDisplayName` | `get_tier_display_name` |
+| `getTopConnectedDomains` | `find_top_connected_domains` |
+| `gitLastTouchedDays` | `find_last_touched_days` |
+| `glob` | `list_glob_matches` |
+| `hasFrontmatter` | `has_frontmatter` |
+| `headingAnchors` | `heading_anchors` |
+| `integrateDocument` | `integrate_document` |
+| `isArchived` | `is_archived` |
+| `isBuiltinDomain` | `is_builtin_domain` |
+| `isDirectory` | `is_directory` |
+| `isFile` | `is_file` |
+| `isGeneratedIndexRel` | `is_generated_index_relative` |
+| `isLifecycleTrackedTier` | `is_lifecycle_tracked_tier` |
+| `isValidDomain` | `is_valid_domain` |
+| `isValidTier` | `is_valid_tier` |
+| `listDomainDocFiles` | `list_domain_doc_files` |
+| `loadPluginConfig` | `load_plugin_config` |
+| `loadPluginConfigSync` | `load_plugin_config_sync` |
+| `mergeFrontmatter` | `merge_frontmatter` |
+| `mergeMetadata` | `merge_metadata` |
+| `normalizePath` | `normalize_path` |
+| `parseFrontmatter` | `parse_frontmatter` |
+| `parseKbErrorCode` | `parse_knowledge_base_error_code` |
+| `pathExists` | `is_path_present` |
+| `pathExistsSync` | `is_path_present_sync` |
+| `quickHealthCheck` | `check_quick_health` |
+| `readRawConfig` | `load_raw_config` |
+| `regenerateIndexes` | `regenerate_indexes` |
+| `removeExtension` | `strip_extension` |
+| `removeFrontmatter` | `strip_frontmatter` |
+| `renderFactsIndex` | `render_facts_index` |
+| `renderIncidentsIndex` | `render_incidents_index` |
+| `renderSymptomsIndex` | `render_symptoms_index` |
+| `resetRegistry` | `reset_registry` |
+| `resolveDocsRoot` | `resolve_docs_root` |
+| `resolvePath` | `resolve_path` |
+| `resolvePlaybookGlobs` | `resolve_playbook_globs` |
+| `resolveReportsDir` | `resolve_reports_dir` |
+| `resolveVaultRoot` | `resolve_vault_root` |
+| `runMaintenance` | `run_maintenance` |
+| `saveAuditReport` | `write_audit_report` |
+| `saveHealthReport` | `write_health_report` |
+| `saveLinkReport` | `write_link_report` |
+| `scaffoldExists` | `is_scaffold_present` |
+| `sectionOf` | `section_of` |
+| `setFrontmatter` | `with_frontmatter` |
+| `setFrontmatterField` | `with_frontmatter_field` |
+| `setFrontmatterKeys` | `with_frontmatter_keys` |
+| `slugify` | `format_slug` |
+| `statusValueSchema` | `status_value_schema` |
+| `stringifyFrontmatter` | `render_frontmatter` |
+| `suggestDomainsForFile` | `find_domains_for_file` |
+| `syncMetadata` | `sync_metadata` |
+| `toDocsRelative` | `resolve_doc_path` |
+| `unarchiveDoc` | `unarchive_doc` |
+| `validateDomainPlacement` | `validate_domain_placement` |
+| `validateFrontmatter` | `validate_frontmatter` |
+| `validateKnowledgeBaseFields` | `validate_knowledge_base_fields` |
+| `validateMetadata` | `validate_metadata` |
+| `validatePartialMetadata` | `validate_partial_metadata` |
+| `writeRawConfig` | `write_raw_config` |
+
+Downstream consumers: `company-websites/tools/regenerate-docs-index.mjs` imports `generateRootIndex`,
+`generateRootRegistry`, `generateDomainIndexContent`, `generateDomainRegistryContent`, `parseFrontmatter` and
+`formatDate`. After upgrading, change them to `generate_root_index`, `generate_root_registry`,
+`generate_domain_index_content`, `generate_domain_registry_content`, `parse_frontmatter` and `format_date`.
+
+### Unchanged
+
+CLI commands and flags, `--json` output keys, every file under `.hewtd/`, plugin config keys, frontmatter keys and
+the gaps/graph JSON schemas keep their names.
+
+### Added
+
+- Naming standard in `docs/naming.md` (glossary, verb list with one meaning per verb, casing, short-name rules,
+  serialized-name exception).
+- `npm run lint:naming` (`.eslintrc.naming.json`), a local check; it is not part of CI.
+- `tests/integration/library-api.test.ts` pins the renamed exports.
+
+## [2.22.0] — 2026-11-07 (not published separately; ships in 3.0.0)
+
+Fixes from the 2.21.0 field test (#69).
+
+- Graph: a symbol's `file` is the source file that defines it (regex patterns, not a parser), with a new
+  additive `file_kind` (`definition` | `reference`) on symbol refs and `symbols[name]`; `version` stays 1.
+  Fallbacks report `reference`. JSON, lockfiles, generated, minified, `dist/`, `build/`, markdown and files
+  over 512KB are never definition sites.
+- Graph export covers exactly the docs triage judges: `drafts/`, `generated: true` and `tier: plan` docs are
+  no longer left out (missing refs show `resolved: false`).
+- `hewtd index --no-graph` skips the export (no file, no export line). `graph_export: false` and
+  `--dry-run` are unchanged.
+- Secrets: word-made code references (`self.x`, `settings.X`, calls, `{name}` slots), email values under
+  a secret-named key and `<NAME ...>` pointer records are no longer `generic-secret` findings. Random
+  characters never qualify, so a real credential containing `.`, `(`, `{x}`, `<` or `@` is still found.
+  Emails are still reported as `personal` findings, which never block (unchanged). A cited code file with only weak hits
+  (`generic-secret`, `url-password`) is withheld (`blocked_files`) without blocking the doc.
+- Secrets recall: `hvs.`/`hvb.` tokens from 16 chars, new rules `approle-id` and `vault-kv-value`.
+- Gaps: `reconcile --gaps` keeps queries up to 200 characters (was 20 words); 3-word minimum kept.
+- Apply: only changed frontmatter keys are rewritten (new `setFrontmatterKeys`); other frontmatter bytes
+  and the body stay byte-identical.
+- Correction to 2.21.0: applied phrases are plain strings under `symptoms`, or appended to the first
+  object entry's `user_phrase`, not always `user_phrase` entries.
+- Cost: triage is roughly 10 to 15% slower (definition-site lookup).
+
+## [2.21.0] — 2026-11-07
+
+Search gaps to docs (#66). Ships 2.20.0 too.
+
+- `hewtd reconcile --gaps <file> [--json]` reads a `gaps.v1` file (`schemas/gaps.v1.schema.json`,
+  `docs/gaps-format.md`), a bare array, a string array or one question per line, and sorts each query
+  into a `symptoms.user_phrase` proposal (known `used_doc`), a new-doc candidate (code identifier with
+  ranked file sources) or an open question. Writes only `.hewtd/reconcile/gaps-report-<date>.md`.
+- `--write-review` writes `review-<batch>-gaps.md` (verdict `phrases`); `--apply` adds the accepted
+  phrases as `user_phrase` symptoms in one commit. Reruns are no-ops.
+- Phrases are normalized, near-duplicates merged, capped by `reconcile.gaps.max_phrases_per_doc`
+  (default 5); secret-shaped queries are dropped and masked.
+- Slash command `/reconcile` step 4b. Without `--gaps`, reconcile is unchanged.
+
+## [2.20.0] — 2026-11-07 (not published separately; ships in 2.21.0)
+
+Doc-to-code graph export (#65).
+
+- `hewtd index` and `reconcile --apply` (when something was applied) write `.hewtd/graph.json`:
+  schema v1 (`schemas/graph.v1.schema.json`), per-doc refs with `resolved` true/false/null,
+  `body_changed` and `code_changed` dates, verdict, `last_verified`, owner/pointer/duplicate
+  data and a symbol index. No timestamp; `source_commit` instead; byte-identical when unchanged.
+- `graph_export: false` turns it off. Skipped outside git. Secret-guarded. hewtd never reads it back.
+- `.hewtd/graph-cache.json` caches body-change dates.
+- Cost: `index` runs a full triage for the export, so it takes seconds on large trees.
+- `TriageDoc.refs` and `resolveDocs` expose resolved references.
+- Docs: `docs/graph-export.md`.
+
+## [2.19.0] — 2026-11-07
+
+Write-time guards (#61). Ships 2.17.0 and 2.18.0 too.
+
+- `hewtd integrate` refuses any input holding a secret (masked findings, no
+  `--force` bypass, also on `--dry-run`).
+- `integrate` records up to `integrate.sources_max` (default 10, `0` = off)
+  file-level `sources` for a new doc; never `last_verified`; never indexed by search.
+- `hewtd secrets --staged` scans only added lines of the staged diff.
+- `hewtd hooks install|uninstall`: opt-in pre-commit block inserted after the shebang (runs before any `exit`), refuses symlinked or non-shell hooks, byte-exact removal; fails closed if `hewtd` cannot run.
+- `.hewtd/secrets-baseline.json` and `hewtd secrets --baseline-add|--baseline-prune`:
+  fingerprints only, merged into `reconcile.secrets.allow`.
+- No backfill: upgrading changes no existing doc.
+- Docs: `docs/write-time-guards.md`.
+
+## [2.18.0] — 2026-11-07 (not published separately; ships in 2.19.0)
+
+Question-seeded overviews and one owner per fact for `/reconcile` (#59, part 1).
+
+- `hewtd reconcile --overview "<question>" [--limit N] [--json]`: field-weighted BM25
+  search (optional `reconcile.search_command`), link expansion, member ledger states.
+  Writes `.hewtd/reconcile/overview-<slug>.json` only.
+- `--write-review --overview <members-file>` and the `overview` verdict: applies only
+  when members are reconciled; a member change sends the overview to `check`.
+- Duplicate-section detection (`copy of owner.md#section`), and `merge` and `point`
+  verdicts with a mechanical no-loss check (`missing: <tokens>`).
+- Pointer records and staleness (`pointer target changed: <target>`).
+- `link-check` prints advisory `LINK_BROKEN_ANCHOR` warnings (never affect exit codes).
+- Overview template uses pointer records; `/reconcile` section 3 rewritten (the
+  `integrate -a` path is gone).
+
+## [2.17.0] — 2026-11-07 (not published separately; ships in 2.19.0)
+
+Secrets step for `/reconcile` (#59, part 2).
+
+- `hewtd reconcile --secrets [scope] [--json]`: built-in detector, masked output
+  (first 4 characters, length, fingerprint). Writes `.hewtd/reconcile/secrets-report-<date>.md`.
+- New blocking `secret` triage lane; flagged cited files go to `blocked_files`.
+  Secret-lane docs are never judged or sharded.
+- New `secret` verdict: values move to a git-ignored, 0600 `.env.hewtd`, a pointer
+  stays in the doc, and rollback restores both.
+- Every reconcile write is guarded against secret values; a hit in the staged diff rolls back.
+- Config `reconcile.secrets.allow` (reason required) and `disabled_rules`.
+- `/reconcile` slash command: step 0 "Secrets first".
+
+## [2.16.0] — 2026-11-07
+
+Field-test fixes for `/reconcile` and related repos (#58). Behaviour changes first.
+
+**Behaviour changes**
+
+- `reconcile.schema_sources` now defaults to `[]`: tables are checked only when
+  you configure it. Triage lists the schema files it found.
+- More references are `unknown` instead of `missing`: leading-slash paths,
+  host-like URLs, names no code defines that another doc also mentions, and
+  links that leave the project root.
+- `--apply` exits 1 on any error and prints a summary line. It is all-or-nothing:
+  a failure restores every touched file to its pre-apply state, commits nothing
+  and does not save the ledger.
+  It stages with `-f`, so a gitignored `archive/` commits. `rewrite` verdicts no
+  longer count as reviewed.
+- Outside lane: config-referenced files are `not-a-doc`, files under
+  `archive`/`_archive`/`archived` folders are `junk`; integrated docs get git `last_updated` and no `last_validated`.
+- Staleness counts from the last body change; frontmatter-only commits no longer reset it.
+
+**Added and fixed**
+
+- `reconcile.related_repos`: read-only sibling lookup, `<name>:<path>` sources,
+  cross-links into `<sibling>/.documentation`, and an ownership hint (summarize and cross-link).
+- Config is loaded from the docs path's project root, so subdirectory runs match root runs.
+- Scripts are collected from every tracked `package.json`.
+- Symbol lookup is fast on large files (a 9 MB single-line file resolves in seconds).
+- Overview flows merge near-duplicates; root README/INDEX/OVERVIEW are never flow members.
+- YAML list indentation is preserved on frontmatter writes.
+
+## [2.15.0] — 2026-11-07
+
+`/reconcile` (#54). Additive. Check existing docs against the code, in scoped,
+resumable batches. Full reference: `docs/reconcile.md`.
+
+- **`hewtd reconcile <scope...>`**: deterministic triage (no LLM). Sorts docs
+  into `clean`, `fields-only`, `check` and `archive-candidate` from the paths,
+  symbols, env vars, commands, tables and doc links they cite, plus a git
+  staleness signal (priority only; never writes `last_verified`). Refuses with
+  no scope and no `--next`, and on uncommitted changes in scope. `--json`.
+- **Review files and `--apply`**: `--write-review` writes skeletons to
+  `.hewtd/reconcile/`; `--apply <files>` is the only writer. Serial, one commit
+  per batch, hash-checked (stale entries skipped), idempotent. Only the `verify`
+  verdict stamps `last_verified`.
+- **Team mode**: auto at 12 judged docs or 250 KB; `--serial` / `--team`
+  override. Agents only write review files. Defaults are provisional.
+- **Outside lane**: `--outside` classifies tracked markdown outside the docs
+  root (tool-read, junk, not-a-doc, misplaced); accepted integrate-and-remove
+  keeps history in `provenance:`. `keep_in_place` always wins.
+- **Ledger** (`.hewtd/reconcile.json`) and `--status` / `--next N` to resume.
+- New optional frontmatter field `moved_from`. New `reconcile` config block.
+- New slash command `/hit-em-with-the-docs:reconcile`. It supersedes the
+  drafting commands deferred in #50 (E) and #51 (section 3).
+- Also: lockfiles are excluded from byte estimates.
+
+## [2.14.0] — 2026-11-07
+
+Follow-ups to 2.13 (#55) and two `integrate` traps (#54). Behaviour changes:
+
+- **`integrate` refuses a file already in the docs tree at a path other than
+  its target.** It exits non-zero ("already in the docs tree"; use
+  `maintain --fix` / `metadata-sync`) and writes nothing. A file already at its
+  target is still rewritten in place.
+- **Commands find the docs root from subdirectories.** The default
+  `-p`/`--path`/`--docs-path` walks up to the nearest ancestor with
+  `.documentation`, stopping at the git root. Explicit `-p` is unchanged; `init`
+  is excluded. For docs-path commands the config root is the parent of the docs path.
+- **`hewtd init` writes `reports_dir: ".hewtd/reports"`** when the key is absent
+  (only when it creates a new docs tree, never on `--force`; existing settings and
+  an unparseable config file are left alone).
+- **`hewtd index` stamps `generated: true`** on unstamped `maintenance-`,
+  `health-`, `audit-` and `links-` `.md` reports and rebuilds the facts,
+  incidents and symptoms indexes. `--dry-run` only reports.
+- **Fewer `OVERVIEW_MISSING` warnings.** Detection now finds dense flows
+  (label propagation, hubs excluded) instead of one cluster per domain; the
+  message reads `Flow: tags — N docs (...) have no overview`. Still advisory.
+- `fix-retrieval-fields` drops filler `summary`/`description`, clears
+  `Documentation for <title>` purposes, and prints `dropped`/`cleared` counts.
+- Fix: restored the exported `quickHealthCheck`.
+
+## [2.13.0] — 2026-11-06
+
+Overview docs (#51). Additive, with one behaviour change: **`maintain --fix`
+now edits doc bodies** (see below).
+
+- New optional `kind: overview` frontmatter field (only value `overview`; any
+  other value fails the audit) and `templates/overview.template.md`.
+- Cluster detection: domains and cross-domain connected components of linked
+  docs. New `overview` config block (`min_cluster_size` 5,
+  `min_link_coverage` 0.6, `backlinks` true, `disabled` []).
+- `hewtd audit` raises advisory `OVERVIEW_MISSING` and `OVERVIEW_STALE_LINKS`
+  warnings. They never change the exit code or `--strict`, and the GitHub
+  Action does not count them toward `fail-on-error`.
+- `hewtd report health` shows overview coverage and a table of clusters
+  missing an overview (`overviewCoverage` in JSON).
+- **`maintain --fix` now edits doc bodies:** it inserts a
+  `Part of: [Title](rel.md)` back-link in each member of a cluster that has an
+  overview. Without `--fix`, `maintain` only lists pending back-links.
+  Idempotent; skips the docs clusters ignore (generated, plan-tier, drafts,
+  reports, archived, `status: draft`). Turn it off with
+  `"overview": {"backlinks": false}`. Review the diff before committing in CI.
+- Fix: `--fix` and `integrate` no longer drop unmodelled frontmatter keys
+  (`kind`, `generated`, `symptoms`).
+- Fix: one `maintain --fix` run now converges (back-links run before the
+  metadata sync); a second run changes nothing.
+
+## [2.12.0] — 2026-11-06 (not published separately; its changes ship in 2.13.0)
+
+Retrieval-ready docs (#50). Additive: existing trees keep working, and the
+reports directory default is unchanged.
+
+- Plain-string `symptoms:` are valid on every tier, not only facts.
+- Generated indexes, registries and reports carry `generated: true`. Root and
+  domain `INDEX.md` tables gain a Purpose column. Run `hewtd index` to refresh.
+- `integrate` no longer writes a "Documentation for <title>" purpose. It leaves
+  `purpose` missing when the first paragraph is not a usable sentence.
+- Fact and doc templates and `extract-facts` carry `purpose` and `symptoms`.
+- `hewtd audit` raises advisory `RETRIEVAL_*` warnings (missing or weak
+  purpose, generic title, missing symptoms, oversized, near-duplicate). They
+  never change the exit code, and the GitHub Action does not count them
+  toward `fail-on-error`. Tune them with the `retrieval` config block.
+- `hewtd fix-retrieval-fields [--apply]` moves `summary`/`description` into
+  `purpose` and merges `keywords` into `tags`.
+- `hewtd report health` shows a Retrieval Coverage table.
+- New optional `reports_dir` config.
+- New page: `docs/retrieval-fields.md`.
+
+## [2.11.0] — 2026-10-25
+
+Three fixes from using hewtd alongside semantic-memory: `archive` no longer
+overwrites files (#44), generated indexes no longer link to domain folders that
+don't exist (#45), and fact docs can carry plain-string `symptoms:`, the shape
+semantic-memory indexes (#46).
+
+### `archive` refuses to overwrite an existing file (#44)
+
+Archiving `README.md` when `archive/README.md` already existed replaced that file
+without warning: `git mv -f` overwrote it, and so did the `fs.rename` fallback
+used for untracked docs. `archive` and `unarchive` now refuse any existing
+destination, naming both paths, in dry runs too. If you were hit by this,
+recover with `hewtd unarchive`, `git checkout HEAD -- <archive path>`, then
+rename the doc and archive it again.
+
+### Generated indexes link only to domains that exist (#45)
+
+Generated `INDEX.md` / `REGISTRY.md` files linked every registered domain, so a
+project using a few of the 15 built-ins got dozens of broken links it couldn't
+fix (the files are generated and guarded). Related domains, the root REGISTRY's
+quick reference, by-category and common-tasks tables now list only domains with
+a folder on disk, and the hardcoded Standards link is gone. A partial scaffold
+(`init --domains`) links only the domains it created. On semantic-memory's docs,
+the 47 generated broken links drop to 0, and the health score rises with them.
+Run `hewtd index` to refresh existing files.
+
+### Plain-string `symptoms:` on facts (#46)
+
+On `tier: fact`, a `symptoms:` entry may now be a plain string: literal error
+text for that fact, with no `target` or `cites`. That's the shape semantic-memory
+indexes as a search chunk, so the same field now passes both tools. Other tiers
+still reject strings, with an error saying only facts may use that form, and
+object entries keep their rules everywhere. `cite` no longer crashes on a string
+entry; it cites onto the first object entry or appends one.
+
+## [2.10.0] — 2026-10-03
+
+Gotchas found during a working session now have a home: the knowledge base
+(#40, first step), with no schema change and nothing to install. Plus seven
+fixes from the first real use of the knowledge base in another project (#39).
+
+### Gotchas are recorded as knowledge-base facts before merge
+
+The session brief now states that a command or approach that fails in a
+non-obvious way, once a working fix is found, is recorded as a fact under the
+vault's `facts/` folder, tagged `gotcha`, with an `## Instead` section and a
+`verify_command` where one is possible, and committed before the PR merges.
+Typos and simple wrong paths are excluded. Because gotchas use the existing fact
+tier plus a tag, `facts/INDEX.md` already groups them.
+
+A line read at session start is weakest at the end of a long session, so the
+PreToolUse guard repeats it when it applies: `gh pr create` and `gh pr merge`
+get a warning (never a denial). It is matched at command position outside
+heredoc bodies, like the deletion check, so a PR body or commit message that
+mentions those commands does not trigger it. Merges done outside Claude (GitHub
+UI, a terminal) are not covered.
+
+### Knowledge-base fixes from a first real use (#39)
+
+- **The skill and session brief now describe the knowledge base.** Neither
+  mentioned it, so an agent asked to "log this in the KB" wrote prose into a
+  domain doc. The `documentation-lifecycle` skill has a "Knowledge base" section
+  (vault location, the three tiers, the incident → facts → symptoms → audit
+  flow), and the brief has one line pointing at it.
+- **`docs/` ships in the package.** `README.md` links `docs/LLM-GUIDE.md` and
+  `docs/knowledge-base-primitives.md`, but `files` in `package.json` never
+  listed `docs`, so the published tarball had none of them.
+- **`migrate-incident` writes a real date.** For `incident-2026-09-28-x.md` it
+  wrote `date: incident-2` (the first ten characters of the name) and a folder
+  named `incident-2026-09-28-x`. The date is now found anywhere in the name and
+  the folder is `2026-09-28-x`, matching the `YYYY-MM-DD-<slug>` id convention.
+  An undated name takes its date from frontmatter `date:`, then `last_updated`,
+  then today; it is never a slice of the name.
+- **`integrate` respects a declared domain.** The target folder came only from
+  keyword detection, so a doc declaring `domains: [troubleshooting]` could land
+  in another folder. The order is now: the new `--domain <id>` flag, then the
+  doc's first declared domain, then detection.
+- **`archive` no longer counts generated indexes as inbound links.** Rows in the
+  root and domain `INDEX.md` / `REGISTRY.md` are rebuilt by the archive's own
+  reindex, but they blocked the move, and the only way past was `--force`, which
+  also switched the check off for real links. A hand-written sub-feature
+  `INDEX.md` still counts.
+- **`archive` and `unarchive` accept a project-relative path.**
+  `.documentation/api/x.md` was read as relative to the docs folder and reported
+  as not found. Project-relative, docs-relative and absolute paths now all work.
+- **`audit-facts --run-verify-all`** re-checks every fact that has a
+  `verify_command` and exits 1 if any fail (`/hit-em-with-the-docs:audit-facts
+  all` in the slash command).
+
+## [2.9.0] — 2026-08-31
+
+Seven issues from the backlog. One new capability — two things that were
+hardcoded are now declared in `.claude/hit-em-with-the-docs.json`: the `status`
+vocabulary and `docs_root`. The rest are fixes, and four of them share a root
+cause worth naming: hewtd was matching **text** where it should have been
+matching **structure** — a substring for a shell deletion, a filename shape for
+a generated report, a leading-space count for a code block, a YAML schema on one
+end of a round-trip and a different one on the other.
+
+### hewtd no longer audits its own generated reports
+
+`audit`, `report`, and `maintain` write their output into `<docs>/reports/`, and
+every scan then read it back as documentation. Each generated report carries
+`domains: [root]` and an ISO timestamp in its filename, so each one raised a
+`metadata-domain` and a `naming-convention` warning. The headline health score
+fell as reports accumulated rather than as documentation quality changed — a
+team running `maintain` weekly watched its score drop for doing maintenance,
+which makes the number useless as a trend line.
+
+Measured on a fresh project before the fix: warnings went 3 → 5 as the reports
+directory went 1 → 2 files, and kept climbing. After: flat, regardless of how
+many reports have accumulated.
+
+`reports/` now joins `archive/` in the always-applied scan ignores, so `audit`,
+`link-check`, `metadata-sync` and the archive scanners all skip it. Zero errors
+were ever involved — this was warning noise and a misleading average — so no
+previously-reported problem stops being reported.
+
+**Excluded at the docs root only**, unlike `archive/` which is excluded at any
+depth. `<docs>/reports/` is the sole place hewtd writes reports
+(`join(docsPath, 'reports')`); a `features/reports/` folder is somebody's
+documentation *about* reports and stays audited. Assuming a name implied a
+generated artifact is precisely the defect
+[#19](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/19) was about.
+
+No `exclude` config key: the report location is not configurable, so a
+hardcoded exclusion is exactly symmetric with it.
+
+Closes [#27](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/27).
+
+
+### Frontmatter round-trips; date fields survive `--fix`
+
+The read and write paths used two different YAML implementations with different
+schemas. `parseFrontmatter()` read via gray-matter's js-yaml **default** schema,
+which includes the YAML 1.1 timestamp type; `stringifyFrontmatter()` wrote via
+the `yaml` package's **core** schema, which does not. So a quoted
+`last_updated: '2026-08-22'` was read as a string, written back **unquoted**,
+and re-read as a `Date`. Frontmatter did not round-trip.
+
+Both ends now use the same implementation, so a `Date` can no longer
+materialize out of frontmatter at all, and an already-damaged file carrying a
+bare date reads back as the string it was meant to be.
+
+Date-shaped values are additionally written **quoted**. Reading is now
+internally consistent, so hewtd alone would cope — but frontmatter is a shared
+contract, and most YAML readers still default to 1.1, where a bare `2026-08-22`
+is a timestamp. Emitting it unquoted hands every other consumer the same bug.
+
+**Full ISO timestamps are now accepted and normalized.**
+`last_updated: '2026-04-18T00:00:00.000Z'` was neither accepted nor truncated,
+and no `--fix` could resolve it. The schema now truncates a date-time string to
+`YYYY-MM-DD`, and `--fix` settles it on disk. Until the engine fix above, these
+validated only by accident — written unquoted, re-read as a `Date`, and rescued
+by the existing `Date` branch.
+
+`maintain --fix` is now idempotent on date fields: a second run rewrites
+nothing.
+
+Scope note for anyone reading the original report: on 2.8.2 the audit failure it
+describes no longer occurred, because `dateStringSchema` has coerced `Date` back
+to `YYYY-MM-DD` since 2.3.0 (the report quotes a pre-2.3.0 schema and a 2.0.0
+CLI). The quote-stripping itself was still real and is what is fixed here.
+
+Closes [#28](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/28).
+
+
+### `extractLinks()` understands indented code blocks and CommonMark fences
+
+2.8.2 taught the link scanner about fenced blocks and inline code spans. Two
+gaps remained, both surfaced by [#22](https://github.com/TheGlitchKing/hit-em-with-the-docs/pull/22)
+from @andrewcb22:
+
+- **Indented code blocks were still scanned**, so a link shown as an example in
+  a four-space block was reported as broken — the same defect as
+  [#20](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/20), one
+  code shape over.
+- **Fence closing was too loose.** Any run of the same marker character closed a
+  block regardless of length, and a fence indented four columns was read as a
+  fence rather than as code. Per CommonMark a closing fence must be at least as
+  long as its opener, and an opener may be indented at most three columns.
+
+Both fixed. Indentation is treated as code only when it is at least four
+columns, follows a blank line (indented code cannot interrupt a paragraph), and
+is **not inside a list** — inside a list, four columns is ordinary continuation
+content, a nested item or a second paragraph. Treating that as code would hide
+links that are genuinely broken, which is a worse failure than the one being
+fixed: #20 reported links that were not broken; this would hide links that are.
+
+Offsets are still preserved: inline spans are blanked with spaces, so
+`startIndex`, `endIndex`, and `lineNumber` stay correct for a real link sharing
+a line with a span.
+
+
+### `metadata-sync --fix` is scoped to the declared documentation root
+
+`--fix` writes the full frontmatter block into every markdown file it finds, and
+`--path` accepts any directory. Aimed at a source tree it rewrote unrelated
+markdown across a whole repository — infrastructure notes, test fixtures, loose
+READMEs — stamping 16 lines of hewtd metadata onto files that are not
+documentation. Nothing in the command's name suggests that reach.
+
+The root cause was that **nothing declared where a project's documentation
+lives**. The docs root existed only as a per-invocation `--path`, so a safety
+check had nothing to consult and could only guess from directory contents.
+
+New `docs_root` in `.claude/hit-em-with-the-docs.json` (default
+`.documentation`) is that declaration. `--fix` now refuses to write anywhere
+outside it. A tree scaffolded elsewhere still works: a root `INDEX.md` is
+accepted as a positive marker, because hewtd is what writes it.
+
+Deciding by declaration rather than by content sniff is the point. An earlier
+cut of this fix tested for domain-named folders — which any repository with a
+top-level `api/` or `testing/` satisfies by accident. Nothing satisfies a
+declaration by accident.
+
+Reads are unrestricted, and so is `--dry-run` — the preview of what `--fix`
+would do still works anywhere.
+
+`syncMetadata` gains an optional `projectRoot` (defaults to `process.cwd()`) so
+the declaration resolves correctly for callers whose docs tree is not under the
+current directory.
+
+Closes [#25](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/25).
+
+### Lifecycle guard: deletion is matched structurally, not textually
+
+The deletion rule asked two independent questions of the whole Bash command
+string — "is `rm` present anywhere" and "is a docs path present anywhere" — and
+denied when both were true. Neither asked whether the path was an *operand* of
+the deletion, or whether the text sat inside a heredoc body the shell never
+executes.
+
+The result was a run of false denials. A commit message that named `git rm
+--cached` in prose. An issue body that quoted a deletion next to a docs path —
+including, twice, the filing of the bug report about this very behavior. A
+scratch-directory cleanup that happened to share a line with an unrelated `[ -f
+<doc> ]` existence check. In the session behind #26 the guard fired five times;
+every underlying operation was legitimate and every one proceeded by another
+route. The protection was pure friction.
+
+This is the same shape as [#19](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/19):
+matching a substring where the structure was the thing that mattered. There the
+name `INDEX.md` was taken to imply "generated"; here the presence of `rm`
+anywhere in a string was taken to imply "a file is being deleted".
+
+Now denied only when a docs path is an operand of a deletion at command
+position. Consequently allowed:
+
+- **Prose that quotes a deletion.** Heredoc bodies are stripped before matching.
+- **`git rm --cached`.** It unstages and leaves every file on disk — an index
+  operation, not a deletion, and nothing `hewtd archive` substitutes for.
+- **An unrelated deletion sharing a line with a docs path.** `rm /tmp/x.md &&
+  echo <doc>` is not a docs deletion.
+- **`drafts/` and `reports/`.** Scratch space and hewtd's own generated output.
+  Not new policy: `core/audit/rules.ts` already exempts exactly these two from
+  domain-folder validation.
+
+Genuine deletions still deny, including quoted paths, flag-carrying forms
+(`rm -rf`), `unlink`/`shred`, `sudo` and env-assignment prefixes, deletions in
+any segment of a compound command, and a deletion following a closed heredoc.
+
+Known ceiling, deliberately accepted: a deletion smuggled through another
+command's arguments (`find <docs> -exec rm {} +`, `xargs rm`) is not matched.
+The module's header already sets out the calculus — the cost of a false positive
+is far higher than the cost of a miss, because a guard people learn to route
+around protects nothing.
+
+17 new guard tests. Closes [#21](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/21)
+and [#26](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/26).
+
+
+### Project-configurable `status` vocabulary
+
+`status` was validated against a hardcoded four-value enum (`draft|active|
+deprecated|archived`). A project with its own long-standing lifecycle words had
+no way to declare them, so every one of its docs failed validation — and new
+docs scaffolded toward `active` while the corpus stayed on its own vocabulary.
+Steady drift, with no single place declaring what this project's statuses are.
+
+Extra values now go in `.claude/hit-em-with-the-docs.json`:
+
+```json
+{ "status": ["complete", "current", "in_progress"] }
+```
+
+They are honored by `integrate`, `audit`, `metadata-sync`, and the metadata
+guide `init` scaffolds.
+
+The list is **additive — it extends the built-ins, it cannot replace them.** The
+built-ins are load-bearing rather than stylistic: `archive` writes
+`status: archived`, `unarchive` writes `status: active`, the `audit` deprecation
+nudge keys on `status: deprecated`, and every generated `INDEX.md`/`REGISTRY.md`
+is emitted `status: active`. A replace-mode config would let a project
+invalidate hewtd's own output with its own settings, so replace mode does not
+exist.
+
+New `core/metadata/status-registry.ts` mirrors the custom-domain registry: a
+cached singleton resolving built-ins + config at first use, with
+`resetStatusRegistry()` for tests. `DOC_STATUS_VALUES` moves there and is still
+re-exported from `core/metadata/schema.ts` — no public API change.
+
+A status outside the active vocabulary is still rejected, and the message now
+names both the active set and the file to declare more in. Lifecycle-tracked
+tiers (`plan`, `fact`, `incident-narrative`, `incident-facts`) carry their own
+per-tier status enums and are untouched.
+
+Closes [#18](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/18).
+
+### Added
+
+- ESLint config (`.eslintrc.json`) and the CI lint gate restored — `npm run lint`
+  had never been able to run. Four findings across 13.6k lines, all benign.
+  Closes [#16](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/16).
+
+## [2.8.2] — 2026-08-08
+
+Bugfix. Three defects that all inflated the broken-link count on documentation
+that was **correct** — which is the real cost, because a number that is wrong in
+the safe direction trains people to stop reading it.
+
+**`symptoms/INDEX.md` links were project-root-relative.** The generator emitted
+`[relPath](relPath + anchor)` where `relPath` is `relative(projectRoot, ...)`,
+while writing the file into `<vaultRoot>/symptoms/`. Every href therefore
+resolved against *that* directory:
+
+```
+emitted : .documentation/devops/grafana-alerts-runbook.md
+resolves: .documentation/knowledge-base/symptoms/.documentation/devops/...   broken
+correct : ../../devops/grafana-alerts-runbook.md
+```
+
+Broken by construction, on a file `maintain` had just written. The label stays
+project-relative — it is a stable identifier in the table — and only the href is
+computed against the index's own directory. `renderSymptomsIndex(index,
+symptomsDir?)` keeps the new argument **optional**, so existing callers are
+unaffected.
+
+**`extractLinks()` reported links inside code as broken.** A bare regex ran
+line-by-line with no fence or code-span awareness, so `[text](./path.md)` shown
+as an *example* was counted. Documentation was penalised for being
+documentation. Fenced blocks (``` and `~~~`, any run length) are skipped, and
+inline code spans are blanked **with spaces rather than removed**, so
+`startIndex` / `endIndex` / `lineNumber` stay correct for a real link sharing a
+line with a span.
+
+**`maintain` validated generated output before generating it.** Knowledge-base
+index generation ran after the link check, so the checker read the *previous*
+run's `symptoms/INDEX.md`. Two consecutive runs on identical inputs reported
+different counts, and a generator fix appeared not to work until you ran
+`maintain` twice. Moved to Step 1.6, beside the domain-index regeneration it
+belongs with.
+
+Measured on a 644-file consumer tree: **34 broken links → 0**, and from a
+deliberately stale index, one run now reports 0 where it previously reported 19.
+
+Closes #20, #23.
+
+## [2.8.1] — 2026-07-22
+
+Bugfix. The PreToolUse guard denied every `INDEX.md` / `REGISTRY.md` under the
+docs tree, matched on **basename alone** — nothing checked whether hewtd writes
+that particular file. It does not write most of them.
+
+hewtd generates exactly two shapes (`core/maintain/orchestrator.ts` joins the
+docs path with a single domain segment):
+
+```
+<docs>/INDEX.md            <docs>/REGISTRY.md
+<docs>/<domain>/INDEX.md   <docs>/<domain>/REGISTRY.md
+```
+
+Anything deeper is hand-written prose that merely shares the name — and it was
+**uneditable**. The deny is final, and the advice it offered ("change the
+documents, then run `hewtd index`") does nothing to a file the indexer has never
+touched. Those pages froze with whatever staleness they carried.
+
+Measured in one repo: **11 of 35** `INDEX.md` files sat one level below a domain.
+`hewtd index` reported "48 index files written" and left all 11 byte-identical.
+One of them was a pricing table naming a price the product does not charge, on
+the first page a reader opens in that domain.
+
+The only escape was `enforcement.block_index_edits: false` — global, so it would
+have unprotected the 24 genuinely generated files to unblock the 11.
+
+`isGeneratedIndex()` now checks the path, not just the name. The active domain
+ids are passed into `evaluate()` via `GuardInput` rather than imported, keeping
+`guard.ts` pure; the hook supplies them and seeds the registry with the payload's
+`cwd` (`getRegistry()` defaults to `process.cwd()`, which is not necessarily the
+project being edited). Absent a list, the rule falls back to "one segment below
+the docs root" — correct for every single-segment domain id.
+
+## [2.8.0] — 2026-07-14
+
+Lifecycle enforcement. hewtd's create/update/deprecate/archive policy has
+always been enforced at the **CLI boundary** — the archive link guard, `auto:
+false`, the frontmatter schema. None of that bound an **agent**. Claude working
+in a hewtd-managed repo, with no particular knowledge of hewtd, would happily
+`rm` a stale doc, hand-edit a generated `INDEX.md`, or start its own `docs/`
+folder. The policy lived in the README, and nothing made anyone read it.
+
+Worse, the agent-facing contract *had* been written — `templates/claude/CLAUDE.md`
+stated the whole thing — and was **never installed**. Nothing in the codebase
+referenced it. It shipped in the tarball and sat there.
+
+Three layers now, in descending order of strength. Full reference:
+[`docs/enforcement.md`](docs/enforcement.md).
+
+### Added
+
+- **A `PreToolUse` guard — the part that is actually binding.** Run by the
+  harness rather than the model, so it cannot be reasoned past. It **denies**
+  exactly two things, both destructive: hand-editing a generated
+  `INDEX.md`/`REGISTRY.md` under the docs tree (it is rebuilt from disk; edits
+  are silently discarded — and hand-curated rows are precisely how #12 festered),
+  and `rm`/`git rm`/`shred` of a doc under the docs tree (irreversible, and
+  `hewtd archive` is the reversible alternative — hewtd's own source contains no
+  delete calls anywhere). It **warns**, without blocking, on `status: deprecated`
+  without archiving, on starting a rival `docs/` tree, and on a hand-rolled `mv`
+  into `archive/` that skips the `archived_from` stamp `unarchive` depends on.
+- **Two invariants the guard will not violate.** It runs in *every* session the
+  plugin is installed in, including repos with nothing to do with hewtd — so
+  (1) **no `.documentation/` tree → it allows everything, instantly and
+  silently**, and (2) **any internal error → it allows the call**. It fails open,
+  unconditionally. A guard that blocks unrelated work because it threw is worse
+  than no guard. The warnings are narrow for the same reason: markdown under
+  `src/`, a subpackage `README.md`, a test fixture, a website's own docs — none
+  of them trigger anything. A noisy guard is a guard people switch off.
+- **An `enforcement` config block**, because a guard nobody can disable is a
+  guard people uninstall the plugin to escape:
+  ```json
+  { "enforcement": { "block_index_edits": true, "block_doc_deletion": true } }
+  ```
+  Both default `true`; disabling one leaves the other active.
+- **A `SessionStart` lifecycle brief.** A compact description of how the tree
+  works, injected **only when the project has a `.documentation/` tree**. It
+  writes no files — and deliberately does **not** create or modify `CLAUDE.md`,
+  which is yours and which you almost certainly already have. Phrased as a
+  statement of fact rather than instructions, since imperative injected text can
+  trip Claude's prompt-injection defenses.
+- **A model-invocable skill** (`skills/documentation-lifecycle/`). Claude now
+  reaches for hewtd's commands on its own when asked to write or retire a doc,
+  instead of needing `/hit-em-with-the-docs:help` invoked first. `link-skills.js`
+  previously linked *no* skills (`skillsDir: null` — its own comment said "ships
+  no bundled skills"); it now links this one for npm installs, and plugin
+  installs pick it up from `skills/`.
+
+### Fixed
+
+- **The archive policy is now explicit and uniform: archived content is
+  *referenceable, never concrete*.** Anything under an `archive/` folder — **at
+  any depth** — is excluded from every scan: not indexed, not audited, not
+  link-checked, not metadata-validated, never counted. It is what the docs *used*
+  to say. It stays **referenceable** (link-check validates targets by file
+  existence, so a link from an active doc into the archive still resolves and
+  history stays reachable), but it is never **concrete** — never evidence of how
+  the system behaves today.
+
+  Previously this only half-held. The ignore glob was anchored at the docs root
+  (`archive/**`), so `<docs>/archive/` was skipped while `<docs>/features/archive/`
+  was **still scanned and validated** — even though 2.7.1's indexer correctly
+  ignored it. A nested archived doc could raise audit errors and stale-metadata
+  warnings for content nobody was supposed to be reading. The guard also warns when
+  an agent edits a file under `archive/`: not destructive, merely pointless, since
+  the change lands in a subtree no scan reads and no index lists. Restoring is
+  `hewtd unarchive`, not editing in place.
+
+### Removed
+
+- **`templates/claude/CLAUDE.md`** — the orphaned agent contract, never installed
+  by any command. Its content now lives where it can actually reach an agent: the
+  session brief and the skill.
+
+## [2.7.1] — 2026-07-13
+
+The indexer walks subfolders. Until now `listDomainDocFiles()` did a flat
+`readdir` of each domain, so **every document in a subfolder was invisible
+to the entire system** — never indexed, never counted, never drift-checked.
+In the repository that surfaced this, 215 documents were structurally
+absent from every index: `standards/INDEX.md` claimed that domain held two
+documents when it held fifty.
+
+> ### ⚠️ Read before upgrading: your first index run will be large
+>
+> The first `hewtd index` or `hewtd maintain` after this release **adds a row
+> for every document that was previously invisible** — several hundred in any
+> repo that uses subfolders (215 in the tree that surfaced this, taking its
+> root index from 160 rows to 369). This is correct: those documents were always
+> supposed to be indexed. But it is a big, surprising diff, so preview it first:
+>
+> ```bash
+> hewtd index --dry-run
+> ```
+>
+> Nothing under `archive/`, `drafts/`, `reports/`, or the vault's generated
+> subtrees is in that diff. And if you worked around this bug by hand-curating
+> root-index rows that point into subfolders, **delete them** — those documents
+> are generated for you now. See [docs/indexing.md](docs/indexing.md).
+
+This was not merely a missing-rows bug. `hewtd index`/`maintain` regenerate the
+root INDEX **from disk**, so regeneration actively **deleted** hand-curated
+root-index entries pointing into subfolders — a user running `maintain` in good
+faith would commit that deletion. The practical rule in any repo with subfolders
+became "curate the index by hand and never run the indexer," which is backwards.
+Fixing that is why this is a bug fix and not a feature.
+
+### Fixed
+
+- **The domain walk is recursive** (`listDomainDocFiles`). Documents at any
+  depth are now indexed, as domain-relative POSIX subpaths: `standards/backend/foo.md`
+  appears in `standards/INDEX.md` as `backend/foo.md` and in the root `INDEX.md`
+  as `standards/backend/foo.md`.
+- **Two more consumers silently shared the same blind spot**, and both are fixed
+  by the same change. The **`index-drift` audit rule** compared `INDEX.md` against
+  a document list produced by the *same* flat function — so drift on a nested doc
+  was undetectable **by construction**, which is how this rotted unnoticed. It now
+  reports them (`standards/INDEX.md lists 2 of 50 document(s)`). The **`domain remove`
+  orphan count** likewise undercounted by the same set.
+- **Title fallback takes the basename.** A nested document with no frontmatter
+  `title` now renders as "Entity Schema Contract", not "Backend/entity Schema Contract".
+- **A malformed frontmatter block no longer aborts the run.** `gray-matter` throws
+  on bad YAML, and a broken *nested* doc could previously sit unnoticed for months
+  because nothing ever read it. Now that the walk reaches it, one bad file would have
+  killed `index`/`maintain` for the whole project with a stack trace. Such a document
+  is now indexed anyway — with a filename-derived title and a warning naming the file
+  and the YAML error. It stays findable; skipping it silently would have recreated
+  the very bug being fixed.
+
+### Added
+
+- **`hewtd index --dry-run`** — preview without writing. Prints the per-domain
+  count with the delta against what each `INDEX.md` lists today
+  (`features  164 documents  (+157 not currently listed)`) and a total. Added
+  specifically so the one-time upgrade diff above is something you *look at*
+  before it lands, rather than something you discover in `git diff`.
+- **[`docs/indexing.md`](docs/indexing.md)** — the indexing contract, which did not
+  exist before and whose absence is part of why this bug survived: what is indexed,
+  what never is *and why*, where the behavior lives in the code, and a
+  symptom-indexed troubleshooting ladder ("a doc I wrote is missing from the index",
+  "`hewtd index` deleted rows from my root INDEX", "my index grew by hundreds of rows").
+
+### Exclusions — now explicit, because the deeper walk can reach them
+
+A flat scan physically could not descend into `archive/` or a vendored doc tree, so
+those exclusions held **by accident**. The moment the walk goes deep, that accident
+stops holding. Excluded by path segment, at any depth: `archive/`, `drafts/`,
+`reports/`, `_templates/`, `node_modules/`, and a nested `.documentation/`. A nested
+`INDEX.md`/`REGISTRY.md` is matched by basename and never treated as a document.
+
+**And the vault.** `facts/`, `incidents/`, and `symptoms/` under `vault.root` are
+withheld from the generic domain index. Projects commonly register `knowledge-base`
+as a domain *and* as the vault root; without this, a recursive walk would sweep every
+fact and incident narrative into a generic INDEX — indexed a second time, and rendered
+as if they were ordinary guides. The exclusion is scoped to those three
+generator-owned subtrees, not the whole vault, so a `knowledge-base/README.md` stays
+indexed exactly as it always was and this release **only ever adds rows**.
+
+Fixes [#12](https://github.com/TheGlitchKing/hit-em-with-the-docs/issues/12).
+
+## [2.7.0] — 2026-06-08
+
+The archival process. 2.6.0 shipped `archive/` as a passive folder
+convention — you moved files into it by hand and hewtd politely ignored
+the subtree. 2.7.0 turns that folder into an actual workflow: a command
+to retire a doc (and one to bring it back), an advisory detector that
+surfaces archive candidates, a config block to tune it, and an audit
+nudge that finally makes `status: deprecated` mean something. Minor,
+additive release: no existing behavior changes, the `archive/` exclusion
+is unchanged, and the new frontmatter fields are optional.
+
+Two principles shape the whole feature. **Propose, don't impose** —
+detection is advisory, a human always executes the move, and nothing is
+ever auto-archived (`auto: false` by default). **Reversible and
+link-safe** — archiving records where a doc came from so restore is
+lossless, and a link guard prevents silently breaking the active corpus.
+And a deliberate non-feature: hewtd does **not** archive on
+access-recency (it has no read telemetry) or on age alone. Docs aren't
+code — an unchanged foundational doc is usually the most important one,
+not the most disposable — so the only recency signal is git-last-touched,
+and even that is advisory and gated behind "also orphaned."
+
+### Added
+
+- **`hewtd archive <file>` — retire a doc, non-destructively and
+  reversibly.** Moves the doc into `archive/<same-domain-subpath>/` (so
+  `api/old.md` → `archive/api/old.md`), stamps lifecycle frontmatter
+  (`status: archived`, `archived_on`, `archived_from`, and
+  `archived_reason` when `-r/--reason` is given), and regenerates the
+  indexes so the doc cleanly drops out of its domain INDEX. Prefers
+  `git mv` to preserve history; falls back to a plain move outside a git
+  repo. **Link guard:** refuses by default if active docs still link to
+  the target — it reports each offending link so you can fix them first —
+  and `--force` overrides (the inbound links then become dangling).
+  `--dry-run` previews without moving anything.
+- **`hewtd unarchive <file>` — the lossless reverse.** Restores the doc to
+  the path recorded in `archived_from`, sets `status: active`, and strips
+  the `archived_*` fields. Refuses if the restore target already exists, so
+  it never clobbers a doc you've since recreated. `--dry-run` previews.
+- **`hewtd archive-candidates` — advisory, read-only detection.** Lists
+  docs that may warrant archiving, each with a score and the reasons
+  behind it; it never moves anything. Signals, ranked: `status:
+  deprecated` and `superseded_by:` are strong explicit signals and each
+  qualify a doc on their own; orphaned (zero inbound links) and stale
+  (git-last-touched, or `last_updated` as a fallback when git is
+  unavailable, older than the threshold) are weaker — and **age only
+  counts when the doc is also orphaned**, never on its own. `--json` for
+  machine-readable output.
+- **`archive` config block** in `.claude/hit-em-with-the-docs.json`, with
+  four optional keys and conservative defaults: `honor_status_deprecated`
+  (default `true` — treat `status: deprecated` as a candidate signal),
+  `candidate_after_days` (default `365` — the staleness threshold),
+  `require_orphaned` (default `true` — gate the age signal behind "also
+  orphaned"), and `auto` (default `false` — nothing is ever
+  auto-archived).
+- **New lifecycle frontmatter fields** recognized by the schema:
+  `superseded_by` (set by hand to point at the replacing doc), and the
+  archive-stamped `archived_on`, `archived_from`, and `archived_reason`.
+  These validate on active docs (`superseded_by`, `status: deprecated`)
+  and on archived docs alike.
+- **`deprecated-not-archived` audit nudge.** A doc left at `status:
+  deprecated` while still sitting in an active domain folder now raises an
+  INFO audit issue suggesting `hewtd archive <file>`. `status: deprecated`
+  and archiving are different steps — `deprecated` flags intent while
+  keeping a doc live and indexed; `archive` physically retires it — and
+  this nudge is what finally makes `status: deprecated` actionable instead
+  of a dead-end label.
+
+## [2.6.0] — 2026-06-08
+
+Runtime custom domains. The 15 built-in domains are no longer the whole
+story — projects can now register their own documentation domains at
+runtime, without recompiling, via a new `hewtd domain` command and a
+`domains: []` block in `.claude/hit-em-with-the-docs.json`. Minor,
+additive release: the built-in domains are unchanged and remain part of
+the compiled contract, and the `src/index.ts` exports are additive.
+
+### Added
+
+- **Custom domains via `hewtd domain add | remove | list`.** Beyond the
+  15 built-ins, a project can declare its own domains. Each entry lives in
+  `.claude/hit-em-with-the-docs.json` under a new `domains: []` array with
+  fields `id` (kebab-case), `name`, `description`, `keywords` (≥1),
+  `loadPriority` (1-10), and `category` (`core | development | features |
+  advanced`). Once registered, a custom domain is valid in any doc's
+  `domains:` frontmatter and its `keywords` feed `integrate`'s
+  auto-classification, exactly like a built-in.
+  - `hewtd domain list [--json]` — lists built-in + custom domains,
+    partitioned and marked by kind.
+  - `hewtd domain add <id> -k <comma,keywords> [-n name] [-d desc] [-c
+    category] [--load-priority N] [--dry-run]` — validates strictly,
+    writes the config entry, scaffolds `.documentation/<id>/` with
+    INDEX.md/REGISTRY.md, and refreshes the root indexes. Keywords are
+    REQUIRED (they're what makes the new domain discoverable to
+    `integrate`). `--dry-run` prints the proposed entry + folder without
+    writing. Guardrails: a built-in id, a duplicate custom id, a
+    non-kebab-case id, empty keywords, or a bad category are all rejected
+    with a hard error.
+  - `hewtd domain remove <id>` (alias `rm`) `[--dry-run]` — removes the
+    custom entry from config. **Non-destructive**: it never deletes the
+    folder or the docs inside it. Any docs in `.documentation/<id>/` are
+    reported as *orphaned* (left on disk, no longer a recognized domain).
+    Refuses to remove a built-in domain — those are part of the compiled
+    contract and always present.
+- **`/hit-em-with-the-docs:domain` slash command.** A thin wrapper over
+  the CLI that adds the confirm dance these mutating operations need: `add`
+  previews via `--dry-run` and asks before applying (and prompts for the
+  required keywords if missing); `remove` reports the orphaned-doc count
+  and only applies on explicit confirmation.
+- **Reserved `archive/` folder for deprecated docs.** `<docs>/archive/` is
+  the parking lot for retired documentation — move a doc here instead of
+  deleting it. hewtd **actively excludes** the entire `archive/` subtree
+  from every scan: `audit`, `link-check`, `metadata-sync`, `integrate`
+  duplicate-detection, the link graph, and `search`. Archived docs are not
+  validated, never appear in any INDEX.md/REGISTRY.md, and can't break
+  audit/link-check with stale frontmatter. `init` now scaffolds `archive/`
+  with a README documenting the convention, and `archive` is a reserved
+  name (`hewtd domain add archive` is rejected).
+
+### Fixed
+
+- **`loadPluginConfigSync` no longer silently falls back to defaults in
+  the published package.** The sync config reader used a lazy
+  `require('fs')` inside the function, which throws `require is not
+  defined` in the ESM runtime the package ships as. The throw was caught
+  by the fail-open `try/catch`, so every synchronous config read returned
+  defaults — `vault.*` overrides and any `domains: []` entries read on the
+  sync path were silently ignored regardless of what was in
+  `.claude/hit-em-with-the-docs.json`. It now uses a static
+  `import { readFileSync } from 'fs'`, so the sync reader actually reads
+  the file. (The async `loadPluginConfig` was unaffected — it already used
+  a static `fs/promises` import.)
+
+## [2.5.0] — 2026-05-16
+
+INDEX.md / REGISTRY.md regeneration fix. `integrate` and `maintain` now
+rebuild the documentation indexes from the documents on disk via the real
+generators, instead of a regex-append path that silently failed to register
+the first document into any domain. Closes #7. No breaking changes — the
+`src/index.ts` exports are additive.
+
+### Fixed
+
+- **`integrate` now registers the first document into a domain.**
+  `updateDomainIndex()` could only append a row to an INDEX.md that already
+  contained a markdown table. A freshly scaffolded domain INDEX.md has no
+  table, so the regex never matched and nothing was written — and the failure
+  was swallowed by a bare `catch`, so `integrate` still reported success. The
+  first document into every domain was therefore never indexed, and projects
+  without CI never got populated INDEX.md/REGISTRY.md files at all. `integrate`
+  now regenerates the target domain's INDEX.md/REGISTRY.md (and the root
+  indexes) from disk via the real generators, and a regeneration failure
+  propagates to the caller instead of being silently swallowed. (#7)
+
+### Added
+
+- **`hewtd index` (alias `reindex`)** — regenerates every domain + root
+  INDEX.md/REGISTRY.md from the documents on disk. `--domain <name>` restricts
+  domain-file writes to one domain (root indexes are still refreshed). This is
+  the recovery command `index-generator.ts` already pointed users to — it now
+  exists.
+- **`maintain` self-heals indexes.** A new "Step 1.5: Index Regeneration" step
+  rebuilds all domain + root INDEX.md/REGISTRY.md on every `maintain` run, so
+  the indexes never drift from the documents present. It also recreates any
+  INDEX.md/REGISTRY.md that the domain-health check reported as missing. Runs
+  in quick mode too.
+- **`audit` INDEX.md drift detection.** A new `index-drift` rule flags any
+  document on disk that its domain's INDEX.md fails to list (and a missing
+  INDEX.md when documents are present). It is error-severity, so `audit
+  --strict` gates CI on it; `failedFiles` is unchanged, so a plain `audit`
+  exit code keeps its pre-2.5.0 behavior.
+- **`regenerateIndexes()` / `listDomainDocFiles()`** exported from
+  `src/index.ts` — the shared, single-source-of-truth index builder used by
+  `integrate`, `maintain`, the `index` command, and the drift audit.
+
+## [2.4.0] — 2026-05-15
+
+Bug fix + recovery command for the 2.3.0 `migrate-incident` target-path
+issue. No breaking changes to the public API (`src/index.ts` exports
+unchanged). New CLI command `hewtd fix-legacy-layout` unblocks any
+consumer who already ran the buggy 2.3.0 migrator.
+
+### Fixed
+
+- **`migrate-incident` now writes to `<vault-root>/incidents/<slug>/`**
+  (the canonical location the `incidents/INDEX.md` generator scans).
+  Previously, the target was derived from the flat file's parent
+  directory, which produced folders OUTSIDE `<vault-root>/incidents/`
+  when the source lived at the vault root. The `incidents/INDEX.md`
+  generator missed those folders silently — `hewtd maintain` would
+  report `Generated 0 incidents` despite multiple migrations having
+  run. Discovered in real-world use (4 migrations in the investorhub
+  repo on 2026-05-14, all required a manual `mv` to populate the
+  index).
+
+### Added
+
+- **`hewtd fix-legacy-layout`** — relocates 2.3.0-buggy incident folders
+  into `<vault-root>/incidents/`. Detects legacy folders by walking one
+  level under the vault root and matching folders that:
+    1. Contain a valid `narrative.md`
+    2. Have `tier: incident-narrative` in frontmatter
+    3. Are NOT already under `incidents/`, `facts/`, or `symptoms/`
+
+  Moves each into `<vault-root>/incidents/<slug>/`. Refuses to clobber
+  an existing canonical folder (reports `skipped` with reason). Also
+  rewrites `provenance:` references in `<vault-root>/facts/*.md` that
+  pointed at the moved folders (handles both fully-qualified paths
+  like `.documentation/knowledge-base/<slug>/` and bare-slug refs).
+  Idempotent — re-running on a clean vault is a no-op. Supports
+  `--dry-run` for safe preview.
+
+- **`migrate-incident --force`** flag. When a folder already exists at
+  the canonical or legacy location, the default behavior is to no-op
+  with a warning. `--force` overrides and proceeds (overwrites).
+
+- **`migrate-incident` legacy-detection feedback.** When an
+  already-migrated folder is detected at the 2.3.0-buggy location, the
+  CLI surfaces it explicitly and suggests running `fix-legacy-layout`:
+
+  ```
+  Already migrated.
+    Existing folder is at the 2.3.0 legacy location: .../foo/narrative.md
+    Run `hewtd fix-legacy-layout` to relocate it under incidents/.
+    Use --force to re-migrate (overwrites).
+  ```
+
+### Internal API
+
+- `migrateIncident()` now **requires** an explicit `vaultRoot`
+  parameter. The 2.3.0 signature inferred the target from
+  `dirname(flatFilePath)`, which was the source of the bug. This is a
+  breaking change to the unexported `core/knowledge-base/migrate.ts`
+  surface, but `migrate.ts` was never re-exported via `src/index.ts`,
+  so no public-API consumers are affected.
+
+- New `fixLegacyLayout()` function in
+  `core/knowledge-base/fix-legacy-layout.ts`. Not exported from the
+  public API surface; called via the CLI command.
+
+### Tests
+
+- **241 passing** (was 230 at 2.3.0; +11 new).
+- New: `tests/unit/knowledge-base/fix-legacy-layout.test.ts` — 8 tests
+  covering move, no-op, reserved-dir safety, provenance rewrite (both
+  fully-qualified and bare-slug refs), dry-run, decoy-tier skip,
+  destination-collision refusal.
+- Extended: `tests/unit/knowledge-base/migrate.test.ts` — 7 tests
+  (was 4), new coverage for canonical target path, automatic
+  `incidents/` parent creation, legacy-location idempotency detection,
+  and `--force` behavior.
+
+### Migration for consumers stuck on 2.3.0 layout
+
+```bash
+# Preview what would move
+npx --no @theglitchking/hit-em-with-the-docs fix-legacy-layout --dry-run
+
+# Apply the relocation
+npx --no @theglitchking/hit-em-with-the-docs fix-legacy-layout
+
+# Regenerate indexes
+npx --no @theglitchking/hit-em-with-the-docs maintain
+```
+
+Idempotent — re-running on a clean vault is a no-op with a status
+report. Safe to run multiple times.
+
+## [2.3.0] — 2026-05-14
+
+Additive minor release. **No breaking changes.** Existing tiers (guide,
+standard, example, reference, admin, plan) validate exactly as they did in
+2.2.0. A consumer with no knowledge-base subtree and no `symptoms:` frontmatter
+blocks observes zero behavior change.
+
+Full reference: [`docs/knowledge-base-primitives.md`](./docs/knowledge-base-primitives.md).
+LLM-targeted onboarding: [`docs/LLM-GUIDE.md`](./docs/LLM-GUIDE.md).
+
+Test coverage: **230 passing** (was 134 at 2.2.0; +96 new tests).
+
+### Added
+
+- **Three new tiers** for knowledge-base authoring:
+  - `fact` — atomic, single-claim, citable unit with `confidence`,
+    `last_verified`, optional `verify_command`, and `provenance`.
+  - `incident-narrative` — immutable postmortem story; required fields
+    include `date`, `severity` enum, `resolution_status` enum, and
+    `components`.
+  - `incident-facts` — bridge document linking an incident to the facts it
+    produced/strengthened/weakened.
+- **Optional `symptoms:` frontmatter field** on any tier. Maps alert names
+  (exact), user phrases (fuzzy substring), and error patterns (regex) to
+  playbook anchors with `cites:` to facts.
+- **`LIFECYCLE_TRACKED_TIERS` constant** + `isLifecycleTrackedTier()` helper.
+  Lists tiers that use status/last_verified instead of semver. Currently:
+  `plan` (from 2.2.0) + `fact` + `incident-narrative` + `incident-facts`.
+- **Coded error system** for KB validation. Errors carry a stable
+  `KbErrorCode` (e.g. `FACT_MISSING_ID`, `PLAYBOOK_SYMPTOM_DANGLING_CITE`)
+  on `AuditIssue.code`, letting tooling switch on specific violation kinds
+  without substring-matching prose. See `src/core/metadata/errors.ts`.
+- **`hewtd audit --strict` flag.** Exits non-zero on any error or warning
+  (including KB warnings like `FACT_VERIFY_COMMAND_MULTILINE_SHEBANG`).
+  Suitable for CI gating.
+- **`validateKnowledgeBaseFields(data)` public API** for callers that want
+  KB-only validation without running the full schema (useful for incremental
+  validation in editors, generators, and the audit layer itself).
+- **Four LLM-referenceable templates** at `templates/knowledge-base/` —
+  `fact.template.md`, `incident-narrative.template.md`,
+  `incident-facts.template.md`, and `playbook-symptoms.template.md`
+  (frontmatter snippet). Bundled in the npm package.
+- **Full reference doc** at `docs/knowledge-base-primitives.md`.
+
+### Changed
+
+- **Date-shaped frontmatter fields** (`last_updated`, `last_validated`,
+  `last_verified`, `date`) now accept both quoted YYYY-MM-DD strings and
+  YAML-auto-parsed `Date` objects (unquoted `2026-05-14` in YAML). The
+  validator normalizes to string. This relaxation is universal — existing
+  tiers benefit too. No previously-passing doc fails under the new rules.
+- **`audit`'s "invalid tier" suggestion** now lists all current tiers
+  dynamically from `TIERS` (was hardcoded to the original 5, missing the
+  2.2.0 `plan` tier).
+
+### Backward compatibility
+
+- Consumers with no `knowledge-base/` and no `symptoms:` blocks: zero
+  behavior change.
+- `REQUIRED_FIELDS` length unchanged (6). The KB-tier-specific required
+  fields are tracked separately in `TIER_REQUIRED_EXTENSIONS` and surfaced
+  via the tier-aware `getMissingRequiredFields(data)`.
+- `ALL_METADATA_FIELDS` length unchanged (21). KB extension fields (`id`,
+  `confidence`, `provenance`, etc.) are tier-specific and intentionally
+  not in the universal list — adding them would skew completeness calc on
+  non-KB docs.
+
+### PR2: Generators + config
+
+- **`vault:` config block** in `.claude/hit-em-with-the-docs.json`:
+  `root` (default `.documentation/knowledge-base/`),
+  `playbook_paths` (default `[".documentation/**/*.md"]`),
+  `audit_window_days` (default 90). Optional with defaults — existing
+  configs without a `vault` block continue to work.
+- **Three deterministic index generators** wire into `hewtd maintain`
+  when a vault root exists:
+  - `facts/INDEX.md` — grouped by tag → confidence, sorted by id
+  - `incidents/INDEX.md` — chronological desc by date
+  - `symptoms/INDEX.md` — grouped by symptom kind (alert_name |
+    user_phrase | error_pattern)
+- **Citation graph walker** (`src/core/knowledge-base/citers.ts`) exposes
+  `buildCiterIndex()`, `findCitersInIndex()`, `citerCount()`. Used by
+  the facts-index generator and the new `find-citers` CLI command.
+- **Determinism guarantees:** byte-identical output across runs (snapshot
+  tests verify), stable sort, no timestamps in generator output, `\n`
+  line endings, padded table columns.
+
+### PR3: CLI commands + slash command surface
+
+Five new CLI subcommands. Each is paired with a Claude Code slash command.
+
+- **`hewtd find-citers <fact-id>`** — walks `cites:` and `provenance:`
+  edges; prints `{ fact_exists, citers, incidents_produced_in,
+  incidents_strengthened_by, incidents_weakened_by }`. `--json` flag.
+- **`hewtd audit-facts [--run-verify <fact-id>]`** — lists facts past
+  `last_verified + audit_window_days`. `--run-verify` executes the fact's
+  `verify_command` and updates `last_verified` on success; on failure,
+  preserves the original. CWD: `<vault>/facts/` by default; override via
+  `working_dir:` frontmatter field.
+- **`hewtd extract-facts <incident-folder> --accept <json>`** — writer
+  side of the extraction workflow. The LLM proposes fact specs via the
+  `/hit-em-with-the-docs:extract-facts` slash command; the CLI commits
+  them deterministically. Auto-populates `provenance:` to the source
+  incident folder; updates the incident's `facts.md` `produced:` list
+  (idempotent).
+- **`hewtd cite <fact-id> --file <playbook>`** — inserts a `cites:` entry
+  into the nearest `symptoms:` block, or creates a new block if none
+  exists. Idempotent — re-citing the same fact in the same entry is a
+  no-op. `--dry-run` to preview.
+- **`hewtd migrate-incident <flat-file>`** — converts a legacy flat-file
+  incident into the folder form (`narrative.md` + `facts.md` skeleton +
+  empty `evidence/`). Original renamed to `.migrated` for rollback.
+  Idempotent.
+
+### LLM onboarding
+
+- **`/hit-em-with-the-docs:help`** slash command with optional topic
+  argument (`frontmatter | knowledge-base | commands | audit | integrate
+  | templates`). Briefs the LLM directly on hewtd's surface.
+- **`docs/LLM-GUIDE.md`** — concise (~150 lines) agent-facing reference
+  with a decision tree, tier-picking heuristics, KB authoring workflows,
+  command tables, and an anti-pattern list.
+
+### Tests
+
+- **230 passing** (was 134 at 2.2.0 baseline; +96 new tests).
+- New coverage for: the 3 new tiers, `LIFECYCLE_TRACKED_TIERS`,
+  `validateKnowledgeBaseFields` (every error code), date-tolerance, audit
+  strict-mode, citation graph, three generators (snapshot + determinism),
+  audit-facts, cite, extract-facts, migrate-incident, full pipeline
+  integration test.
+- Fixture trees at `tests/fixtures/knowledge-base/{valid,invalid}/`.
+- Backward-compat regression test at
+  `tests/integration/no-vault-backcompat.test.ts` — load-bearing
+  guarantee that pre-2.3.0 projects observe zero behavior change.
+
+## [2.1.0] — 2026-04-18
+
+Additive minor release. No breaking changes. Existing behavior is
+preserved; the new surface is opt-in and off by default (update policy
+defaults to `nudge` — one-line notification when a new version is
+available, no automatic changes).
+
+### Added
+- Adopts
+  [`@theglitchking/claude-plugin-runtime`](https://github.com/TheGlitchKing/claude-plugin-runtime)
+  (`^0.1.0`) for standardized update management across all plugins in
+  the marketplace.
+- **Postinstall step** (`scripts/link-skills.js`) now runs on
+  `npm install` — writes a default `.claude/hit-em-with-the-docs.json`
+  with `{ "updatePolicy": "nudge" }`, and registers a SessionStart hook
+  in `.claude/settings.json` if one exists (skipped when the plugin
+  marketplace version is already enabled in `~/.claude/settings.json`,
+  or when `HIT_EM_WITH_THE_DOCS_SKIP_HOOK_REGISTER=1` is set).
+- **SessionStart hook** (`hooks/session-start.js`) checks npm for a
+  newer version of `@theglitchking/hit-em-with-the-docs` at session
+  start and acts per policy:
+  - `off` — silent, no network call
+  - `nudge` *(default)* — prints a one-liner via `additionalContext`
+  - `auto` — runs `npm update` and prints an upgrade confirmation
+  - 3s network budget, 6h cache, CI-skip, fail-open on any error
+- **Four new subcommands** (slash + CLI parity):
+  - `/hit-em-with-the-docs:update` / `hewtd update`
+  - `/hit-em-with-the-docs:policy [auto|nudge|off]` / `hewtd policy`
+  - `/hit-em-with-the-docs:status` / `hewtd status`
+  - `/hit-em-with-the-docs:relink` / `hewtd relink`
+
+### Fixed
+- `--version` now reads dynamically from `package.json` via
+  `createRequire`. Previously hardcoded at `'2.0.0'`, which drifted out
+  of sync with `package.json` (caused `hewtd --version` to lie about
+  the installed version for all of 2.0.1 / 2.0.2).
+
+### Migration
+
+No action required for existing users — the new behaviors are
+conservative and on-by-default only in their minimal form (nudge-only
+update check). To take advantage of the new surface:
+
+```bash
+# From anywhere in your project:
+
+# View installed version, latest on npm, current policy, and hook state
+npx --no @theglitchking/hit-em-with-the-docs status
+
+# Opt into automatic updates on session start
+npx --no @theglitchking/hit-em-with-the-docs policy auto
+
+# Or silence the update check entirely
+npx --no @theglitchking/hit-em-with-the-docs policy off
+```
+
+If you had the plugin installed via the Claude Code marketplace
+(`/plugin install`), running `npm install` as a project-level dep will
+detect that and skip registering the project-level hook — the
+marketplace plugin handles SessionStart events on its own. No duplicate
+hook firing.
+
+**Opt-outs** (env vars):
+
+| Variable | Effect |
+|---|---|
+| `HIT_EM_WITH_THE_DOCS_UPDATE_POLICY` | One-shot policy override for the current session |
+| `HIT_EM_WITH_THE_DOCS_SKIP_LINK=1` | Skip skill symlinking (no-op for this plugin — ships no skills) |
+| `HIT_EM_WITH_THE_DOCS_SKIP_HOOK_REGISTER=1` | Skip writing the SessionStart hook into `.claude/settings.json` |
+
+---
+
+## [2.0.2] and earlier
+
+See git history:
+https://github.com/TheGlitchKing/hit-em-with-the-docs/commits/main

@@ -1,0 +1,31 @@
+{"id":"best-coverage","tier":"dev","q":"how are failed queue jobs retried","facets":["retry_limit","backoff_seconds","jitter_ratio","dead_letter_name"],"nearest_doc":{"path":"ops/queue-ops.md","facet_coverage":"0/4","rank":3}}
+{"id":"unrelated-citer","q":"how long can a slug be","facets":["slug_max_length"],"nearest_doc":{"path":"knowledge-base/incidents/2026-02-checkout-outage.md","facet_coverage":"0/1","rank":2}}
+{"id":"topic-absent","q":"how many rows does a report export page hold","facets":["export_page_size"]}
+{"id":"hub-a","q":"how many days is the invoice grace period","facets":["invoice_grace_days"]}
+{"id":"hub-b","q":"how large can a thumbnail be","facets":["thumbnail_max_edge"]}
+{"id":"shared-a","q":"how often are metrics scraped","facets":["scrape_interval"]}
+{"id":"shared-b","q":"when does the latency alert fire","facets":["alert_latency_ms"]}
+{"id":"covered","q":"how long does the cache keep entries","facets":["cache_ttl_seconds","eviction_policy"],"nearest_doc":{"path":"ops/cache.md","facet_coverage":"2/2","rank":8}}
+{"id":"numeric","q":"which status code means the resource is gone","facets":["gone_response_code","410"]}
+{"id":"size","q":"how big can an upload be","facets":["max_file_size","chunk_size"]}
+{"id":"secret","q":"how does the deploy client connect","facets":["deploy_timeout","deploy_region_name"]}
+{"id":"declared","q":"which jobs run on a schedule","facets":["nightly_backup"]}
+{"id":"non-code","q":"when is the legacy flag cut off","facets":["legacy_cutoff_days"]}
+{"id":"security","q":"how does the auth check on delete work","facets":["auth_check_attempts"]}
+{"id":"blind","tier":"blind","blind":true,"q":"how many digits are ledger amounts rounded to","facets":["round_digits"]}
+{"id":"nearest-facet","q":"how long are uploads kept before purge","facets":["upload_retention_days","upload_purge_hour"],"nearest_doc":{"path":"ops/uploads.md","facet_coverage":"1/2","rank":1}}
+{"id":"real-check","q":"who may delete a record","facets":["has_permission"]}
+{"id":"code-line","q":"how many times is a call retried","facets":["RETRY_CAP = 7"]}
+{"id":"map-hub","q":"how many items does the drain take per batch","facets":["drain_batch_size"]}
+{"id":"beat-a","q":"what does the nightly idle cleanup do","facets":["sweep_idle_rows"]}
+{"id":"beat-b","q":"which email series do trials get","facets":["send_trial_series"]}
+{"id":"beat-c","q":"how are signup rows purged","facets":["purge_signup_rows"]}
+{"id":"pool-a","q":"how long can a pool connection idle","facets":["pool_idle_seconds"],"nearest_doc":{"path":"ops/cache.md","facet_coverage":"0/1","rank":4}}
+{"id":"pool-b","q":"how long does the pool wait for a slot","facets":["pool_max_wait"]}
+{"id":"access-a","q":"how big is a sync batch","facets":["sync_batch_limit"]}
+{"id":"access-b","q":"who may edit","facets":["has_role"]}
+{"id":"rotate","q":"which jobs rotate logs and how many days are kept","facets":["rotate_logs","ROTATE_KEEP_DAYS"]}
+{"id":"docstring","q":"after how long is an idle session reaped","facets":["reap_after_minutes"]}
+{"id":"flags","q":"how does the audit gate fix the lockfile","facets":["--omit=dev","npm audit fix --package-lock-only"]}
+{"id":"chunk","q":"how often is a chunk retried","facets":["chunk_retry_limit"]}
+{"id":"alert-map","q":"how wide is the alert window","facets":["alert_window_minutes"]}

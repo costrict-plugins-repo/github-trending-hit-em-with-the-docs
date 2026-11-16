@@ -1,0 +1,291 @@
+{
+ "note": "18 cases: the 13 failure shapes of #115 (14 rows) plus the #118 shapes. keys defaults to [id]. draft: stated (facts with file:line) | judge | none. path: the new doc's path. security_adjacent: the topic word marking the unit.",
+ "cases": [
+  {
+   "id": "best-coverage",
+   "kind": "extend",
+   "doc": "queue/retries.md",
+   "draft": "stated",
+   "stated": [
+    "jitter_ratio"
+   ]
+  },
+  {
+   "id": "unrelated-citer",
+   "kind": "new",
+   "domain": "utils",
+   "sources": [
+    "src/util/slugify.ts"
+   ],
+   "draft": "stated",
+   "stated": [
+    "slug_max_length"
+   ],
+   "path": "utils/slug-max-length.md"
+  },
+  {
+   "id": "topic-absent",
+   "kind": "new",
+   "draft": "stated",
+   "stated": [
+    "export_page_size"
+   ]
+  },
+  {
+   "id": "hub-a",
+   "kind": "new",
+   "doc": null,
+   "domain": "billing",
+   "draft": "stated",
+   "stated": [
+    "invoice_grace_days"
+   ],
+   "path": "billing/invoice-grace-days.md"
+  },
+  {
+   "id": "hub-b",
+   "kind": "new",
+   "doc": null,
+   "domain": "media",
+   "draft": "stated",
+   "stated": [
+    "thumbnail_max_edge"
+   ]
+  },
+  {
+   "id": "shared-a",
+   "keys": [
+    "shared-a",
+    "shared-b"
+   ],
+   "kind": "new",
+   "sources": [
+    "src/metrics/exporter.ts"
+   ],
+   "draft": "stated",
+   "stated": [
+    "scrape_interval",
+    "alert_latency_ms"
+   ]
+  },
+  {
+   "id": "covered",
+   "kind": "covered",
+   "doc": "ops/cache.md",
+   "draft": "none",
+   "skipped": "covered by ops/cache.md"
+  },
+  {
+   "id": "numeric",
+   "kind": "new",
+   "sources": [
+    "src/http/gone.ts"
+   ],
+   "draft": "stated",
+   "stated": [
+    "gone_response_code"
+   ]
+  },
+  {
+   "id": "size",
+   "kind": "new",
+   "draft": "stated",
+   "stated": [
+    "max_file_size",
+    "chunk_size"
+   ]
+  },
+  {
+   "id": "secret",
+   "kind": "new",
+   "sources": [
+    "src/deploy/client.ts"
+   ],
+   "draft": "stated",
+   "stated": [
+    "deploy_timeout"
+   ],
+   "needs_human": "src/deploy/client.ts:2"
+  },
+  {
+   "id": "declared",
+   "kind": "new",
+   "reference": "schedules",
+   "draft": "none",
+   "skipped": "generated reference suggested"
+  },
+  {
+   "id": "non-code",
+   "kind": "new",
+   "sources": [
+    "src/flags/legacy.ts"
+   ],
+   "draft": "stated",
+   "stated": [
+    "legacy_cutoff_days"
+   ]
+  },
+  {
+   "id": "security",
+   "kind": "new",
+   "draft": "judge",
+   "judge": [
+    "auth_check_attempts"
+   ],
+   "security_adjacent": "auth"
+  },
+  {
+   "id": "blind",
+   "kind": "new",
+   "draft": "stated",
+   "stated": [
+    "round_digits"
+   ],
+   "blind": true
+  },
+  {
+   "id": "nearest-facet",
+   "kind": "extend",
+   "doc": "ops/uploads.md",
+   "draft": "stated",
+   "stated": [
+    "upload_purge_hour"
+   ]
+  },
+  {
+   "id": "real-check",
+   "kind": "new",
+   "draft": "none",
+   "needs_human": "security check (permission or role check) at src/perm/delete_guard.ts:1"
+  },
+  {
+   "id": "code-line",
+   "kind": "new",
+   "draft": "stated",
+   "stated": [
+    "RETRY_CAP = 7"
+   ],
+   "path": "features/retry-cap.md"
+  },
+  {
+   "id": "map-hub",
+   "kind": "new",
+   "doc": null,
+   "draft": "stated",
+   "stated": [
+    "drain_batch_size"
+   ],
+   "path": "features/drain-batch-size.md"
+  },
+  {
+   "id": "beat-a",
+   "kind": "new",
+   "reference": "schedules",
+   "draft": "none",
+   "skipped": "generated reference suggested"
+  },
+  {
+   "id": "beat-b",
+   "kind": "new",
+   "reference": "schedules",
+   "draft": "none",
+   "skipped": "generated reference suggested"
+  },
+  {
+   "id": "beat-c",
+   "kind": "new",
+   "reference": "schedules",
+   "draft": "none",
+   "skipped": "generated reference suggested"
+  },
+  {
+   "id": "pool-a",
+   "keys": [
+    "pool-a",
+    "pool-b"
+   ],
+   "kind": "new",
+   "doc": null,
+   "sources": [
+    "src/pool/limits.ts"
+   ],
+   "draft": "stated",
+   "stated": [
+    "pool_idle_seconds",
+    "pool_max_wait"
+   ]
+  },
+  {
+   "id": "access-a",
+   "kind": "new",
+   "sources": [
+    "src/access/edit.ts"
+   ],
+   "draft": "stated",
+   "stated": [
+    "sync_batch_limit"
+   ]
+  },
+  {
+   "id": "access-b",
+   "kind": "new",
+   "draft": "none",
+   "needs_human": "security check (permission or role check) at src/access/edit.ts:2"
+  },
+  {
+   "id": "rotate",
+   "kind": "new",
+   "reference": "schedules",
+   "draft": "stated",
+   "stated": [
+    "ROTATE_KEEP_DAYS"
+   ],
+   "path": "features/rotate-keep-days.md"
+  },
+  {
+   "id": "docstring",
+   "kind": "new",
+   "sources": [
+    "src/pyjobs/reaper.py"
+   ],
+   "draft": "stated",
+   "stated": [
+    "reap_after_minutes"
+   ]
+  },
+  {
+   "id": "flags",
+   "kind": "new",
+   "sources": [
+    "src/ci/audit.ts"
+   ],
+   "draft": "judge",
+   "judge": [
+    "--omit=dev",
+    "npm audit fix --package-lock-only"
+   ]
+  },
+  {
+   "id": "chunk",
+   "kind": "new",
+   "doc": null,
+   "draft": "stated",
+   "stated": [
+    "chunk_retry_limit"
+   ],
+   "path": "features/chunk/chunk-retry-limit.md"
+  },
+  {
+   "id": "alert-map",
+   "kind": "new",
+   "doc": null,
+   "sources": [
+    "src/alerting/rules.ts"
+   ],
+   "draft": "stated",
+   "stated": [
+    "alert_window_minutes"
+   ]
+  }
+ ]
+}
